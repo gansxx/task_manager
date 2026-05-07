@@ -173,7 +173,12 @@ export class TaskMonitorService {
   }
 
   private isMonitoredFile(file: TFile): boolean {
-    return isFileInsideFolder(file, this.getSettings().watchedFolder);
+    const watchedFolder = this.getSettings().watchedFolder;
+    if (!watchedFolder.trim()) {
+      return this.app.workspace.getActiveFile()?.path === file.path;
+    }
+
+    return isFileInsideFolder(file, watchedFolder);
   }
 
   private formatToken(template: string, date: string): string {

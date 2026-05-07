@@ -11,7 +11,10 @@ export function isFileInsideFolder(file: TFile, folderPath: string): boolean {
   }
 
   const normalizedFilePath = normalizePath(file.path);
-  return normalizedFilePath.startsWith(`${normalizedFolder}/`);
+  return (
+    normalizedFilePath === normalizedFolder ||
+    normalizedFilePath.startsWith(`${normalizedFolder}/`)
+  );
 }
 
 export function normalizeConfiguredFolder(value: string): string {

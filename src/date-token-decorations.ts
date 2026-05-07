@@ -9,14 +9,14 @@ import {
 } from "@codemirror/view";
 import type { Plugin } from "obsidian";
 
-const TOKEN_REGEX = /@(start|done)\([^)]+\)/g;
+const TOKEN_REGEX = /@(?:(start|done|archived)\([^)]+\)|(from)\("[^"]+"\))/g;
 const TOKEN_CLASS = "task-manager-date-token";
 
 const matchDecorator = new MatchDecorator({
   regexp: TOKEN_REGEX,
   decoration: (match) =>
     Decoration.mark({
-      class: `${TOKEN_CLASS} ${getTokenVariantClass(match[1])}`,
+      class: `${TOKEN_CLASS} ${getTokenVariantClass(match)}`,
     }),
 });
 
@@ -98,7 +98,7 @@ function replaceTextNodeTokens(textNode: Text): void {
     }
 
     const tokenEl = document.createElement("span");
-    tokenEl.className = `${TOKEN_CLASS} ${getTokenVariantClass(match[1])}`;
+    tokenEl.className = `${TOKEN_CLASS} ${getTokenVariantClass(match)}`;
     tokenEl.textContent = match[0];
     fragment.append(tokenEl);
 
@@ -112,6 +112,17 @@ function replaceTextNodeTokens(textNode: Text): void {
   textNode.replaceWith(fragment);
 }
 
-function getTokenVariantClass(tokenType: string): string {
-  return tokenType === "done" ? "is-done" : "is-start";
+function getTokenVariantClass(match: RegExpMatchArray | RegExpExecArray): string {
+  const tokenType = match[1] ?? match[2] ?? "start";
+
+  switch (tokenType) {
+    case "done":
+      return "is-done";
+    case "from":
+      return "is-from";
+    case "archived":
+      return "is-archived";
+    default:
+      return "is-start";
+  }
 }

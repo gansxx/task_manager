@@ -19,3 +19,13 @@
   color: var(--text-success);
   border-color: var(--color-green);
 }
+
+.task-manager-date-token.is-from {
+  color: var(--text-muted);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.task-manager-date-token.is-archived {
+  color: var(--text-normal);
+  border-color: var(--color-orange);
+}

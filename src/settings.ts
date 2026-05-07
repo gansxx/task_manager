@@ -1,14 +1,14 @@
 import { App, PluginSettingTab, Setting, normalizePath } from "obsidian";
-import { getSettingsCopy } from "./i18n";
+import { GITHUB_REPO_URL, getSettingsCopy } from "./i18n";
 import type TaskManagerPlugin from "./main";
 import type { TaskManagerSettings } from "./types";
 
 export const DEFAULT_SETTINGS: TaskManagerSettings = {
-  watchedFolder: "Tasks",
+  watchedFolder: "",
   archiveRootFolder: "Task Archive",
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
-  immediateArchiveEnabled: true,
+  immediateArchiveEnabled: false,
   languageMode: "auto",
 };
 
@@ -100,6 +100,15 @@ export class TaskManagerSettingTab extends PluginSettingTab {
             this.plugin.settings.immediateArchiveEnabled = value;
             await this.onSave();
           }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.githubName)
+      .setDesc(copy.githubDesc)
+      .addButton((button) =>
+        button.setButtonText(copy.githubButtonLabel).onClick(() => {
+          window.open(GITHUB_REPO_URL, "_blank", "noopener,noreferrer");
+        }),
       );
   }
 }

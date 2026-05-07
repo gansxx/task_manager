@@ -4,6 +4,8 @@ import type {
   TaskManagerSettings,
 } from "./types";
 
+export const GITHUB_REPO_URL = "https://github.com/gansxx/task_manager";
+
 export type TaskManagerLocale = "zh" | "en";
 
 interface SettingsCopy {
@@ -24,21 +26,25 @@ interface SettingsCopy {
   doneTokenFormatDesc: string;
   immediateArchiveName: string;
   immediateArchiveDesc: string;
+  githubName: string;
+  githubDesc: string;
+  githubButtonLabel: string;
   archiveFailureNotice: string;
 }
 
 const COPY: Record<TaskManagerLocale, SettingsCopy> = {
   zh: {
     languageName: "界面语言",
-    languageDesc: "自动跟随 Obsidian 语言，或手动切换为中文/英文。",
+    languageDesc: "自动跟随 Obsidian 语言，或手动切换为中文和英文。",
     languageAuto: "自动",
     languageChinese: "中文",
     languageEnglish: "English",
     watchedFolderName: "监听文件夹",
-    watchedFolderDesc: "只监听这个库目录下的 Markdown 文件。",
-    watchedFolderPlaceholder: "Tasks",
+    watchedFolderDesc:
+      "留空时默认跟踪当前正在编辑的文件；填写文件夹路径后，仅监听该目录下的 Markdown 文件。",
+    watchedFolderPlaceholder: "留空则跟踪当前文件",
     archiveRootFolderName: "归档根目录",
-    archiveRootFolderDesc: "完成任务会按 年 / 月 / 周 文件 归档到这里。",
+    archiveRootFolderDesc: "完成任务会按 年 / 月 / 周 文件归档到这里。",
     archiveRootFolderPlaceholder: "Task Archive",
     startTokenFormatName: "开始标记格式",
     startTokenFormatDesc: "使用 {date} 作为日期占位符。",
@@ -46,7 +52,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     doneTokenFormatDesc: "使用 {date} 作为日期占位符。",
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
-      "开启后勾选任务会立刻归档并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
+      "默认关闭。开启后勾选任务会立刻归档并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
+    githubName: "GitHub",
+    githubDesc: GITHUB_REPO_URL,
+    githubButtonLabel: "打开仓库",
     archiveFailureNotice: "Task Manager 归档已完成任务时失败。",
   },
   en: {
@@ -56,8 +65,9 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     languageChinese: "中文",
     languageEnglish: "English",
     watchedFolderName: "Watched folder",
-    watchedFolderDesc: "Only Markdown files inside this vault folder will be monitored.",
-    watchedFolderPlaceholder: "Tasks",
+    watchedFolderDesc:
+      "Leave this blank to track the file you are currently editing. Set a folder path to monitor only Markdown files inside that folder.",
+    watchedFolderPlaceholder: "Leave blank to track the current file",
     archiveRootFolderName: "Archive root folder",
     archiveRootFolderDesc: "Completed tasks will be archived under year / month / week files here.",
     archiveRootFolderPlaceholder: "Task Archive",
@@ -67,7 +77,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     doneTokenFormatDesc: "Use {date} as the date placeholder.",
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:
-      "When enabled, completed tasks are archived and removed from the source note immediately. When disabled, only the @done date is added.",
+      "Disabled by default. When enabled, completed tasks are archived and removed from the source note immediately. When disabled, only the @done date is added.",
+    githubName: "GitHub",
+    githubDesc: GITHUB_REPO_URL,
+    githubButtonLabel: "Open repository",
     archiveFailureNotice: "Task Manager could not archive the completed task.",
   },
 };
