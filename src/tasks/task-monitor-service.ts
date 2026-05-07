@@ -1,4 +1,5 @@
 import { App, Editor, EventRef, MarkdownView, Notice, TFile } from "obsidian";
+import { getSettingsCopy } from "../i18n";
 import { TaskEventPipeline } from "../pipeline";
 import type { TaskManagerSettings } from "../types";
 import { getCurrentDateStamp } from "../utils/date";
@@ -81,6 +82,17 @@ export class TaskMonitorService {
       );
       const archivedLine = appendDoneToken(event.currentLine, doneToken);
 
+      if (!this.getSettings().immediateArchiveEnabled) {
+        if (archivedLine !== event.currentLine) {
+          this.runWithSuppressedFile(event.file.path, () => {
+            event.editor.setLine(event.lineNumber, archivedLine);
+          });
+        }
+
+        this.updateSnapshotFromEditor(event.file, event.editor);
+        return;
+      }
+
       await this.archiveService.archiveCompletedTask(
         event.file,
         archivedLine.trim(),
@@ -152,7 +164,7 @@ export class TaskMonitorService {
           });
         } catch (error) {
           console.error("Task Manager: failed to archive completed task", error);
-          new Notice("Task Manager could not archive the completed task.");
+          new Notice(getSettingsCopy(this.getSettings()).archiveFailureNotice);
         }
       }
     }

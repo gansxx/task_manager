@@ -1,0 +1,21 @@
+.task-manager-date-token {
+  display: inline-block;
+  margin-inline: 0.15em;
+  padding: 0.08em 0.45em;
+  border-radius: 999px;
+  font-size: 0.9em;
+  line-height: 1.4;
+  white-space: nowrap;
+  border: 1px solid var(--background-modifier-border);
+  background-color: var(--background-secondary-alt);
+}
+
+.task-manager-date-token.is-start {
+  color: var(--text-accent);
+  border-color: var(--interactive-accent-hover);
+}
+
+.task-manager-date-token.is-done {
+  color: var(--text-success);
+  border-color: var(--color-green);
+}

@@ -8,6 +8,7 @@ export function getCurrentDateStamp(now = new Date()): string {
 export function getIsoWeekParts(now = new Date()): {
   isoYear: number;
   isoWeek: number;
+  archiveMonth: string;
 } {
   const date = new Date(
     Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
@@ -20,6 +21,7 @@ export function getIsoWeekParts(now = new Date()): {
   const isoWeek = Math.ceil(
     ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
   );
+  const archiveMonth = String(date.getUTCMonth() + 1).padStart(2, "0");
 
-  return { isoYear, isoWeek };
+  return { isoYear, isoWeek, archiveMonth };
 }

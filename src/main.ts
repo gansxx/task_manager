@@ -1,12 +1,10 @@
 import { Plugin } from "obsidian";
+import { registerDateTokenDecorations } from "./date-token-decorations";
 import { TaskEventPipeline } from "./pipeline";
-import {
-  DEFAULT_SETTINGS,
-  TaskManagerSettingTab,
-  type TaskManagerSettings,
-} from "./settings";
+import { DEFAULT_SETTINGS, TaskManagerSettingTab } from "./settings";
 import { TaskArchiveService } from "./tasks/archive-service";
 import { TaskMonitorService } from "./tasks/task-monitor-service";
+import type { TaskManagerSettings } from "./types";
 
 export default class TaskManagerPlugin extends Plugin {
   settings: TaskManagerSettings = DEFAULT_SETTINGS;
@@ -29,6 +27,7 @@ export default class TaskManagerPlugin extends Plugin {
 
     this.monitorService.registerDefaultHandlers();
     this.monitorService.start();
+    registerDateTokenDecorations(this);
 
     this.addSettingTab(
       new TaskManagerSettingTab(this.app, this, async () => {

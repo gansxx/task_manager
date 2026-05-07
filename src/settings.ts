@@ -1,4 +1,5 @@
 import { App, PluginSettingTab, Setting, normalizePath } from "obsidian";
+import { getSettingsCopy } from "./i18n";
 import type TaskManagerPlugin from "./main";
 import type { TaskManagerSettings } from "./types";
 
@@ -7,6 +8,8 @@ export const DEFAULT_SETTINGS: TaskManagerSettings = {
   archiveRootFolder: "Task Archive",
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
+  immediateArchiveEnabled: true,
+  languageMode: "auto",
 };
 
 export class TaskManagerSettingTab extends PluginSettingTab {
@@ -20,14 +23,31 @@ export class TaskManagerSettingTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
+    const copy = getSettingsCopy(this.plugin.settings);
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Watched folder")
-      .setDesc("Only Markdown files inside this vault folder will be monitored.")
+      .setName(copy.languageName)
+      .setDesc(copy.languageDesc)
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("auto", copy.languageAuto)
+          .addOption("zh", copy.languageChinese)
+          .addOption("en", copy.languageEnglish)
+          .setValue(this.plugin.settings.languageMode)
+          .onChange(async (value) => {
+            this.plugin.settings.languageMode = value as TaskManagerSettings["languageMode"];
+            await this.onSave();
+            this.display();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.watchedFolderName)
+      .setDesc(copy.watchedFolderDesc)
       .addText((text) =>
         text
-          .setPlaceholder("Tasks")
+          .setPlaceholder(copy.watchedFolderPlaceholder)
           .setValue(this.plugin.settings.watchedFolder)
           .onChange(async (value) => {
             this.plugin.settings.watchedFolder = normalizeVaultPath(value);
@@ -36,11 +56,11 @@ export class TaskManagerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Archive root folder")
-      .setDesc("Completed tasks will be archived under year/week files here.")
+      .setName(copy.archiveRootFolderName)
+      .setDesc(copy.archiveRootFolderDesc)
       .addText((text) =>
         text
-          .setPlaceholder("Task Archive")
+          .setPlaceholder(copy.archiveRootFolderPlaceholder)
           .setValue(this.plugin.settings.archiveRootFolder)
           .onChange(async (value) => {
             this.plugin.settings.archiveRootFolder = normalizeVaultPath(value);
@@ -49,8 +69,8 @@ export class TaskManagerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Start token format")
-      .setDesc("Use {date} as the date placeholder.")
+      .setName(copy.startTokenFormatName)
+      .setDesc(copy.startTokenFormatDesc)
       .addText((text) =>
         text.setValue(this.plugin.settings.startTokenFormat).onChange(async (value) => {
           this.plugin.settings.startTokenFormat =
@@ -60,14 +80,26 @@ export class TaskManagerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Done token format")
-      .setDesc("Use {date} as the date placeholder.")
+      .setName(copy.doneTokenFormatName)
+      .setDesc(copy.doneTokenFormatDesc)
       .addText((text) =>
         text.setValue(this.plugin.settings.doneTokenFormat).onChange(async (value) => {
           this.plugin.settings.doneTokenFormat =
             value.trim() || DEFAULT_SETTINGS.doneTokenFormat;
           await this.onSave();
         }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.immediateArchiveName)
+      .setDesc(copy.immediateArchiveDesc)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.immediateArchiveEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.immediateArchiveEnabled = value;
+            await this.onSave();
+          }),
       );
   }
 }

@@ -5,7 +5,7 @@
   "description": "the plugin to manage tasks",
   "scripts": {
     "dev": "node esbuild.config.mjs --watch",
-    "build": "node esbuild.config.mjs"
+    "build": "node esbuild.config.mjs production"
   },
   "devDependencies": {
     "esbuild": "^0.25.5",

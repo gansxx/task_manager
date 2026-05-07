@@ -13,7 +13,7 @@ export class TaskArchiveService {
     archivedTaskLine: string,
     completedDate: string,
   ): Promise<void> {
-    const { isoYear, isoWeek } = getIsoWeekParts(
+    const { isoYear, isoWeek, archiveMonth } = getIsoWeekParts(
       new Date(`${completedDate}T00:00:00`),
     );
     const archiveRoot = this.getSettings().archiveRootFolder.trim();
@@ -22,11 +22,12 @@ export class TaskArchiveService {
     }
 
     const yearFolder = normalizePath(`${archiveRoot}/${isoYear}`);
+    const monthFolder = normalizePath(`${yearFolder}/${archiveMonth}`);
     const archivePath = normalizePath(
-      `${yearFolder}/${isoYear}-W${String(isoWeek).padStart(2, "0")}.md`,
+      `${monthFolder}/${isoYear}-W${String(isoWeek).padStart(2, "0")}.md`,
     );
 
-    await this.ensureFolderExists(yearFolder);
+    await this.ensureFolderExists(monthFolder);
 
     const archiveLine = `${archivedTaskLine} @from("${sourceFile.path}") @archived(${completedDate})`;
     const existing = this.app.vault.getAbstractFileByPath(archivePath);

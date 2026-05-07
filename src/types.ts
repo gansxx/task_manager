@@ -1,10 +1,14 @@
 import type { Editor, TFile } from "obsidian";
 
+export type TaskManagerLanguageMode = "auto" | "zh" | "en";
+
 export interface TaskManagerSettings {
   watchedFolder: string;
   archiveRootFolder: string;
   startTokenFormat: string;
   doneTokenFormat: string;
+  immediateArchiveEnabled: boolean;
+  languageMode: TaskManagerLanguageMode;
 }
 
 export interface ParsedTaskLine {
