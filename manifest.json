@@ -1,0 +1,9 @@
+{
+  "id": "task-manager",
+  "name": "Task Manager",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "the plugin to manage tasks",
+  "author": "gansxx",
+  "isDesktopOnly": false
+}
