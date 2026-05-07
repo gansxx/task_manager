@@ -4,12 +4,13 @@ import { TaskEventPipeline } from "../pipeline";
 import type { TaskManagerSettings } from "../types";
 import { getCurrentDateStamp } from "../utils/date";
 import { isFileInsideFolder, isMarkdownFile } from "../utils/path";
-import type { TaskArchiveService } from "./archive-service";
+import type { ArchiveWriteResult, TaskArchiveService } from "./archive-service";
 import {
   appendDoneToken,
   createStartLine,
   getCheckboxCursorOffset,
   isEmptyUncheckedTask,
+  isTaskArchivable,
   parseTaskLine,
   wasTaskCompleted,
 } from "./task-line";
@@ -50,6 +51,35 @@ export class TaskMonitorService {
 
     this.snapshots.clear();
     this.suppressedPaths.clear();
+  }
+
+  async archiveTasksInActiveFile(): Promise<ArchiveBatchResult> {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const file = activeView?.file;
+    const editor = activeView?.editor;
+    if (!file || !editor || !isMarkdownFile(file)) {
+      return { count: 0, archivePaths: [] };
+    }
+
+    return this.archiveTasksFromEditor(file, editor);
+  }
+
+  async archiveTaskAtCursor(
+    file: TFile,
+    editor: Editor,
+  ): Promise<ArchiveLineResult | null> {
+    const lineNumber = editor.getCursor().line;
+    const lineText = editor.getLine(lineNumber);
+    if (!isTaskArchivable(lineText)) {
+      return null;
+    }
+
+    const archived = await this.archiveTaskLine(file, editor, lineNumber, lineText);
+    if (archived) {
+      this.updateSnapshotFromEditor(file, editor);
+    }
+
+    return archived;
   }
 
   registerDefaultHandlers(): void {
@@ -241,4 +271,63 @@ export class TaskMonitorService {
       { line: lineNumber, ch: lineText.length },
     );
   }
+
+  private async archiveTasksFromEditor(
+    file: TFile,
+    editor: Editor,
+  ): Promise<ArchiveBatchResult> {
+    const lines = this.getEditorLines(editor);
+    const taskEntries = lines
+      .map((lineText, lineNumber) => ({ lineText, lineNumber }))
+      .filter(({ lineText }) => isTaskArchivable(lineText));
+
+    if (taskEntries.length === 0) {
+      return { count: 0, archivePaths: [] };
+    }
+
+    let archivedCount = 0;
+    const archivePaths = new Set<string>();
+    for (const { lineNumber, lineText } of taskEntries.reverse()) {
+      const archived = await this.archiveTaskLine(file, editor, lineNumber, lineText);
+      if (archived) {
+        archivedCount += 1;
+        if (archived.archivePath) {
+          archivePaths.add(archived.archivePath);
+        }
+      }
+    }
+
+    this.updateSnapshotFromEditor(file, editor);
+    return { count: archivedCount, archivePaths: [...archivePaths] };
+  }
+
+  private async archiveTaskLine(
+    file: TFile,
+    editor: Editor,
+    lineNumber: number,
+    lineText: string,
+  ): Promise<ArchiveLineResult | null> {
+    if (!isTaskArchivable(lineText)) {
+      return null;
+    }
+
+    const result = await this.archiveService.archiveTaskLine(
+      file,
+      lineText.trim(),
+      getCurrentDateStamp(),
+    );
+
+    this.runWithSuppressedFile(file.path, () => {
+      this.removeLine(editor, lineNumber, lineText);
+    });
+
+    return result;
+  }
+}
+
+type ArchiveLineResult = ArchiveWriteResult;
+
+export interface ArchiveBatchResult {
+  count: number;
+  archivePaths: string[];
 }

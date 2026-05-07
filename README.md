@@ -1,5 +1,7 @@
 # Task Manager
 
+[简体中文说明](./README.zh-CN.md)
+
 Zero-config task tracking for Obsidian.
 
 Task Manager starts working as soon as you enable it:

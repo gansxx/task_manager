@@ -30,6 +30,22 @@ interface SettingsCopy {
   githubDesc: string;
   githubButtonLabel: string;
   archiveFailureNotice: string;
+  archiveCurrentFileRibbonTitle: string;
+  archiveCurrentTaskMenuLabel: string;
+  archiveMissingFileNotice: string;
+  archiveNoTasksNotice: string;
+  archiveSingleTaskSuccessNotice: string;
+  archivePageSuccessNotice: (count: number) => string;
+  archiveActionFailureNotice: string;
+  archiveConfirmTitle: string;
+  archiveCurrentFileConfirmMessage: (count: number) => string;
+  archiveCurrentTaskConfirmMessage: string;
+  archiveConfirmButton: string;
+  archiveCancelButton: string;
+  archiveLocationLabel: string;
+  archiveLocationsLabel: string;
+  archiveSingleTaskSuccessWithPath: (path: string) => string;
+  archivePageSuccessWithPaths: (count: number, paths: string[]) => string;
 }
 
 const COPY: Record<TaskManagerLocale, SettingsCopy> = {
@@ -57,6 +73,22 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     githubDesc: GITHUB_REPO_URL,
     githubButtonLabel: "打开仓库",
     archiveFailureNotice: "Task Manager 归档已完成任务时失败。",
+    archiveCurrentFileRibbonTitle: "归档当前页面中的全部任务",
+    archiveCurrentTaskMenuLabel: "归档当前任务",
+    archiveMissingFileNotice: "当前没有可归档的 Markdown 文件。",
+    archiveNoTasksNotice: "当前页面中没有可归档的任务。",
+    archiveSingleTaskSuccessNotice: "已归档当前任务。",
+    archivePageSuccessNotice: (count) => `已归档当前页面中的 ${count} 个任务。`,
+    archiveActionFailureNotice: "Task Manager 手动归档任务时失败。",
+    archiveConfirmTitle: "确认归档",
+    archiveCurrentFileConfirmMessage: (count) => `将归档当前页面中的 ${count} 个已完成任务。归档后这些任务会从当前页面移除。是否继续？`,
+    archiveCurrentTaskConfirmMessage: "将归档当前已完成任务。归档后该任务会从当前页面移除。是否继续？",
+    archiveConfirmButton: "确认归档",
+    archiveCancelButton: "取消",
+    archiveLocationLabel: "归档位置",
+    archiveLocationsLabel: "归档位置",
+    archiveSingleTaskSuccessWithPath: (path) => `已归档当前任务。归档位置：${path}`,
+    archivePageSuccessWithPaths: (count, paths) => `已归档 ${count} 个任务。归档位置：${paths.join("；")}`,
   },
   en: {
     languageName: "Language",
@@ -82,6 +114,22 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     githubDesc: GITHUB_REPO_URL,
     githubButtonLabel: "Open repository",
     archiveFailureNotice: "Task Manager could not archive the completed task.",
+    archiveCurrentFileRibbonTitle: "Archive all tasks in the current note",
+    archiveCurrentTaskMenuLabel: "Archive current task",
+    archiveMissingFileNotice: "There is no active Markdown file to archive.",
+    archiveNoTasksNotice: "There are no tasks to archive in the current note.",
+    archiveSingleTaskSuccessNotice: "Archived the current task.",
+    archivePageSuccessNotice: (count) => `Archived ${count} tasks from the current note.`,
+    archiveActionFailureNotice: "Task Manager could not archive the selected tasks.",
+    archiveConfirmTitle: "Confirm archive",
+    archiveCurrentFileConfirmMessage: (count) => `Archive ${count} completed tasks from the current note? They will be removed from the note after archiving.`,
+    archiveCurrentTaskConfirmMessage: "Archive the current completed task? It will be removed from the note after archiving.",
+    archiveConfirmButton: "Archive",
+    archiveCancelButton: "Cancel",
+    archiveLocationLabel: "Archive location",
+    archiveLocationsLabel: "Archive locations",
+    archiveSingleTaskSuccessWithPath: (path) => `Archived the current task to ${path}`,
+    archivePageSuccessWithPaths: (count, paths) => `Archived ${count} tasks to ${paths.join("; ")}`,
   },
 };
 

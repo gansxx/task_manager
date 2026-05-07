@@ -3,6 +3,7 @@ import type { ParsedTaskLine } from "../types";
 const TASK_LINE_REGEX = /^(\s*)-\s\[( |x|X)\]\s?(.*)$/;
 const START_TOKEN_REGEX = /@start\(([^)]+)\)/;
 const DONE_TOKEN_REGEX = /@done\(([^)]+)\)/;
+const DATE_STAMP_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export function parseTaskLine(line: string): ParsedTaskLine | null {
   const match = TASK_LINE_REGEX.exec(line);
@@ -44,6 +45,34 @@ export function appendDoneToken(line: string, doneToken: string): string {
 
   const suffix = parsed.body.trim().length > 0 ? " " : "";
   return `${parsed.indent}- [x] ${parsed.body}${suffix}${doneToken}`.trimEnd();
+}
+
+export function getTaskReferenceDate(line: string): string | null {
+  const parsed = parseTaskLine(line);
+  if (!parsed) {
+    return null;
+  }
+
+  const doneDate = DONE_TOKEN_REGEX.exec(parsed.body)?.[1];
+  if (doneDate && DATE_STAMP_REGEX.test(doneDate)) {
+    return doneDate;
+  }
+
+  const startDate = START_TOKEN_REGEX.exec(parsed.body)?.[1];
+  if (startDate && DATE_STAMP_REGEX.test(startDate)) {
+    return startDate;
+  }
+
+  return null;
+}
+
+export function isTaskArchivable(line: string): boolean {
+  const parsed = parseTaskLine(line);
+  if (!parsed) {
+    return false;
+  }
+
+  return parsed.checked;
 }
 
 export function wasTaskCompleted(
