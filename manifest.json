@@ -1,7 +1,7 @@
 {
   "id": "task-manager",
   "name": "Task Manager",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "minAppVersion": "1.5.0",
   "description": "the plugin to manage tasks",
   "author": "gansxx",
