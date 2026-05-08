@@ -1,9 +1,9 @@
 {
-  "id": "task-marker",
-  "name": "Task Marker",
-  "version": "0.2.1",
+  "id": "task-timestamp-marker",
+  "name": "Task Timestamp Marker",
+  "version": "0.2.2",
   "minAppVersion": "1.5.0",
-  "description": "Mark task timestamp and Archieve tasks",
+  "description": "Adds @start/@done timestamps and archives completed tasks.",
   "author": "gansxx",
   "isDesktopOnly": false
 }

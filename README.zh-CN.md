@@ -1,4 +1,4 @@
-# Task Manager
+# Task Timestamp Marker
 
 [English README](./README.md)
 

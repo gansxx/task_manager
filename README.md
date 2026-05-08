@@ -1,4 +1,4 @@
-# Task Manager
+# Task Timestamp Marker
 
 [简体中文说明](./README.zh-CN.md)
 
@@ -36,5 +36,4 @@ The demo below shows the basic flow: create a task, check it off, and let the pl
 When you enable archiving or trigger it manually, completed tasks are moved into archive notes so the working page stays clean.
 
 ![Archive demo](./assets/media/archieve.png)
-
 
