@@ -3,7 +3,7 @@
   "name": "Task Timestamp Marker",
   "version": "0.2.2",
   "minAppVersion": "1.5.0",
-  "description": "Adds @start/@done timestamps and archives completed tasks.",
+  "description": "Mark task timestamp and Archieve tasks.",
   "author": "gansxx",
   "isDesktopOnly": false
 }
