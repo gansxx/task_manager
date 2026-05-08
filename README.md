@@ -10,7 +10,19 @@ Task Manager starts working as soon as you enable it:
 - Complete a task and it appends `@done(YYYY-MM-DD)`.
 - Turn on optional archiving later if you want completed tasks moved into weekly notes.
 
-<!-- HERO IMAGE PLACEHOLDER -->
+## Quick Look
+
+### Automatic task markers
+
+Task Manager adds task lifecycle markers directly in your note, so you can see when a task started and when it was completed without extra setup.
+
+![Task marker demo](./assets/media/marker.png)
+
+### Marker workflow video
+
+The demo below shows the basic flow: create a task, check it off, and let the plugin append the correct markers automatically.
+
+<video src="./assets/media/task-marker.mp4" controls muted playsinline></video>
 
 ## What It Does
 
@@ -19,24 +31,10 @@ Task Manager starts working as soon as you enable it:
 - Works out of the box with no folder setup required.
 - Can optionally archive completed tasks into `year / month / week` files.
 
-<!-- ARCHIVE IMAGE PLACEHOLDER -->
+### Archive output
 
-## Development
+When you enable archiving or trigger it manually, completed tasks are moved into archive notes so the working page stays clean.
 
-1. Run `npm install`
-2. Run `npm run dev` while developing
-3. Run `npm run build` for a production bundle
+![Archive demo](./assets/media/archieve.png)
 
-## Sandbox Preview
 
-The preview script defaults to the Obsidian Sandbox vault under `%APPDATA%`.
-
-```powershell
-.\preview-in-sandbox.ps1 -EnablePlugin
-```
-
-Use a different vault only when needed:
-
-```powershell
-.\preview-in-sandbox.ps1 -VaultPath 'D:\My Vault'
-```

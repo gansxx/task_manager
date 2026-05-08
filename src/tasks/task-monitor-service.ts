@@ -158,17 +158,48 @@ export class TaskMonitorService {
 
     const currentLines = this.getEditorLines(editor);
     const previousLines = this.snapshots.get(file.path) ?? currentLines;
-    const cursor = editor.getCursor();
-    const lineNumber = cursor.line;
-    const currentLine = currentLines[lineNumber] ?? "";
-    const previousLine = previousLines[lineNumber] ?? "";
+    const changedLineNumbers = this.getChangedLineNumbers(previousLines, currentLines);
     const date = getCurrentDateStamp();
 
-    if (isEmptyUncheckedTask(currentLine)) {
+    for (const lineNumber of changedLineNumbers) {
+      const currentLine = currentLines[lineNumber] ?? "";
+      const previousLine = previousLines[lineNumber] ?? "";
+      if (!isEmptyUncheckedTask(currentLine)) {
+        continue;
+      }
+
       const parsedTask = parseTaskLine(currentLine);
-      if (parsedTask) {
+      if (!parsedTask) {
+        continue;
+      }
+
+      await this.pipeline.emit({
+        type: "taskCreated",
+        file,
+        editor,
+        lineNumber,
+        previousLine,
+        currentLine,
+        parsedTask,
+        date,
+      });
+    }
+
+    for (const lineNumber of [...changedLineNumbers].reverse()) {
+      const currentLine = currentLines[lineNumber] ?? "";
+      const previousLine = previousLines[lineNumber] ?? "";
+      if (!wasTaskCompleted(previousLine, currentLine)) {
+        continue;
+      }
+
+      const parsedTask = parseTaskLine(currentLine);
+      if (!parsedTask) {
+        continue;
+      }
+
+      try {
         await this.pipeline.emit({
-          type: "taskCreated",
+          type: "taskCompleted",
           file,
           editor,
           lineNumber,
@@ -177,25 +208,9 @@ export class TaskMonitorService {
           parsedTask,
           date,
         });
-      }
-    } else if (wasTaskCompleted(previousLine, currentLine)) {
-      const parsedTask = parseTaskLine(currentLine);
-      if (parsedTask) {
-        try {
-          await this.pipeline.emit({
-            type: "taskCompleted",
-            file,
-            editor,
-            lineNumber,
-            previousLine,
-            currentLine,
-            parsedTask,
-            date,
-          });
-        } catch (error) {
-          console.error("Task Manager: failed to archive completed task", error);
-          new Notice(getSettingsCopy(this.getSettings()).archiveFailureNotice);
-        }
+      } catch (error) {
+        console.error("Task Manager: failed to archive completed task", error);
+        new Notice(getSettingsCopy(this.getSettings()).archiveFailureNotice);
       }
     }
 
@@ -217,6 +232,22 @@ export class TaskMonitorService {
 
   private getEditorLines(editor: Editor): string[] {
     return editor.getValue().split("\n");
+  }
+
+  private getChangedLineNumbers(
+    previousLines: string[],
+    currentLines: string[],
+  ): number[] {
+    const lineCount = Math.max(previousLines.length, currentLines.length);
+    const changedLineNumbers: number[] = [];
+
+    for (let lineNumber = 0; lineNumber < lineCount; lineNumber += 1) {
+      if ((previousLines[lineNumber] ?? "") !== (currentLines[lineNumber] ?? "")) {
+        changedLineNumbers.push(lineNumber);
+      }
+    }
+
+    return changedLineNumbers;
   }
 
   private async seedSnapshot(file: TFile | null): Promise<void> {

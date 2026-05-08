@@ -1,9 +1,9 @@
 {
-  "id": "task-manager",
-  "name": "Task Manager",
-  "version": "0.2.0",
+  "id": "task-marker",
+  "name": "Task Marker",
+  "version": "0.2.1",
   "minAppVersion": "1.5.0",
-  "description": "the plugin to manage tasks",
+  "description": "Mark task timestamp and Archieve tasks",
   "author": "gansxx",
   "isDesktopOnly": false
 }
