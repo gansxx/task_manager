@@ -24,6 +24,11 @@ interface SettingsCopy {
   startTokenFormatDesc: string;
   doneTokenFormatName: string;
   doneTokenFormatDesc: string;
+  timestampPrecisionName: string;
+  timestampPrecisionDesc: string;
+  timestampPrecisionDate: string;
+  timestampPrecisionMinute: string;
+  timestampPrecisionSecond: string;
   immediateArchiveName: string;
   immediateArchiveDesc: string;
   githubName: string;
@@ -66,6 +71,11 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     startTokenFormatDesc: "使用 {date} 作为日期占位符。",
     doneTokenFormatName: "完成标记格式",
     doneTokenFormatDesc: "使用 {date} 作为日期占位符。",
+    timestampPrecisionName: "时间戳精度",
+    timestampPrecisionDesc: "控制 {date} 写入日期、分钟或秒级时间，归档仍按日期分组。",
+    timestampPrecisionDate: "日期（YYYY-MM-DD）",
+    timestampPrecisionMinute: "分钟（YYYY-MM-DD HH:mm）",
+    timestampPrecisionSecond: "秒（YYYY-MM-DD HH:mm:ss）",
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
       "默认关闭。开启后勾选任务会立刻归档并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
@@ -107,6 +117,11 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     startTokenFormatDesc: "Use {date} as the date placeholder.",
     doneTokenFormatName: "Done token format",
     doneTokenFormatDesc: "Use {date} as the date placeholder.",
+    timestampPrecisionName: "Timestamp precision",
+    timestampPrecisionDesc: "Controls whether {date} writes a date, minute timestamp, or second timestamp. Archives still group by day.",
+    timestampPrecisionDate: "Date (YYYY-MM-DD)",
+    timestampPrecisionMinute: "Minute (YYYY-MM-DD HH:mm)",
+    timestampPrecisionSecond: "Second (YYYY-MM-DD HH:mm:ss)",
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:
       "Disabled by default. When enabled, completed tasks are archived and removed from the source note immediately. When disabled, only the @done date is added.",
