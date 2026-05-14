@@ -31,6 +31,8 @@ export default class TaskManagerPlugin extends Plugin {
 
     this.monitorService.registerDefaultHandlers();
     this.monitorService.start();
+    this.updateMetadataTokenVisibility();
+    this.register(() => document.body.removeClass("task-manager-hide-metadata-tokens"));
     registerDateTokenDecorations(this);
     this.registerView(
       TASK_SIDEBAR_VIEW_TYPE,
@@ -59,6 +61,14 @@ export default class TaskManagerPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+    this.updateMetadataTokenVisibility();
+  }
+
+  updateMetadataTokenVisibility(): void {
+    document.body.toggleClass(
+      "task-manager-hide-metadata-tokens",
+      this.settings.hideMetadataTokens,
+    );
   }
 
   private registerArchiveUi(): void {

@@ -71,7 +71,7 @@ export function registerDateTokenDecorations(plugin: Plugin): void {
 }
 
 function createEditorExtension(): Extension {
-  return ViewPlugin.fromClass(TaskDateTokenPluginValue, {
+  return ViewPlugin.define((view) => new TaskDateTokenPluginValue(view), {
     decorations: (pluginValue) => pluginValue.decorations,
   });
 }
