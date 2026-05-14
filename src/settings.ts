@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS: TaskManagerSettings = {
   archiveRootFolder: "Task Archive",
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
+  timestampPrecision: "date",
+  hideMetadataTokens: false,
   immediateArchiveEnabled: false,
   languageMode: "auto",
 };
@@ -88,6 +90,33 @@ export class TaskManagerSettingTab extends PluginSettingTab {
             value.trim() || DEFAULT_SETTINGS.doneTokenFormat;
           await this.onSave();
         }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.timestampPrecisionName)
+      .setDesc(copy.timestampPrecisionDesc)
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("date", copy.timestampPrecisionDate)
+          .addOption("minute", copy.timestampPrecisionMinute)
+          .addOption("second", copy.timestampPrecisionSecond)
+          .setValue(this.plugin.settings.timestampPrecision)
+          .onChange(async (value) => {
+            this.plugin.settings.timestampPrecision = value as TaskManagerSettings["timestampPrecision"];
+            await this.onSave();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.hideMetadataTokensName)
+      .setDesc(copy.hideMetadataTokensDesc)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.hideMetadataTokens)
+          .onChange(async (value) => {
+            this.plugin.settings.hideMetadataTokens = value;
+            await this.onSave();
+          }),
       );
 
     new Setting(containerEl)

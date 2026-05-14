@@ -29,3 +29,124 @@
   color: var(--text-normal);
   border-color: var(--color-orange);
 }
+
+.task-manager-date-token.is-priority {
+  font-weight: 600;
+}
+
+.task-manager-date-token.is-priority-low,
+.task-manager-priority-line.is-priority-low,
+.task-manager-priority-item.is-priority-low,
+.task-manager-sidebar-task.is-priority-low {
+  --task-manager-priority-color: var(--color-blue);
+}
+
+.task-manager-date-token.is-priority-medium,
+.task-manager-priority-line.is-priority-medium,
+.task-manager-priority-item.is-priority-medium,
+.task-manager-sidebar-task.is-priority-medium {
+  --task-manager-priority-color: var(--color-yellow);
+}
+
+.task-manager-date-token.is-priority-high,
+.task-manager-priority-line.is-priority-high,
+.task-manager-priority-item.is-priority-high,
+.task-manager-sidebar-task.is-priority-high {
+  --task-manager-priority-color: var(--color-orange);
+}
+
+.task-manager-date-token.is-priority-urgent,
+.task-manager-priority-line.is-priority-urgent,
+.task-manager-priority-item.is-priority-urgent,
+.task-manager-sidebar-task.is-priority-urgent {
+  --task-manager-priority-color: var(--color-red);
+}
+
+.task-manager-date-token.is-priority-low,
+.task-manager-date-token.is-priority-medium,
+.task-manager-date-token.is-priority-high,
+.task-manager-date-token.is-priority-urgent {
+  color: var(--task-manager-priority-color);
+  border-color: var(--task-manager-priority-color);
+}
+
+.task-manager-priority-line,
+.task-manager-priority-item {
+  border-inline-start: 3px solid var(--task-manager-priority-color);
+  padding-inline-start: 0.5em;
+}
+
+.task-manager-priority-line {
+  background: color-mix(in srgb, var(--task-manager-priority-color) 10%, transparent);
+}
+
+.task-manager-sidebar {
+  padding: var(--size-4-3);
+}
+
+.task-manager-sidebar-header h3 {
+  margin: 0 0 var(--size-4-3);
+}
+
+.task-manager-sidebar-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-2-2);
+  margin-bottom: var(--size-4-3);
+}
+
+.task-manager-sidebar-actions {
+  display: flex;
+  gap: var(--size-2-2);
+}
+
+.task-manager-sidebar-status,
+.task-manager-sidebar-empty,
+.task-manager-sidebar-task-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.task-manager-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-2-2);
+  margin-top: var(--size-4-2);
+}
+
+.task-manager-sidebar-task {
+  border: 1px solid var(--background-modifier-border);
+  border-inline-start: 4px solid var(--task-manager-priority-color, var(--background-modifier-border));
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  padding: var(--size-2-3);
+}
+
+.task-manager-sidebar-task:hover {
+  background: var(--background-modifier-hover);
+}
+
+.task-manager-sidebar-task-title {
+  color: var(--text-normal);
+  font-weight: 500;
+}
+
+.task-manager-hide-metadata-tokens .task-manager-date-token {
+  display: none;
+}
+
+.task-manager-sidebar-date-range {
+  align-items: center;
+  display: flex;
+  gap: var(--size-2-2);
+}
+
+.task-manager-sidebar-date-filter,
+.task-manager-sidebar-file-filter,
+.task-manager-sidebar-priority-filter {
+  width: 100%;
+}
+
+.task-manager-sidebar-date-separator {
+  color: var(--text-muted);
+}
