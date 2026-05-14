@@ -10,7 +10,6 @@ export interface TaskManagerSettings {
   startTokenFormat: string;
   doneTokenFormat: string;
   timestampPrecision: TimestampPrecision;
-  hideMetadataTokens: boolean;
   immediateArchiveEnabled: boolean;
   languageMode: TaskManagerLanguageMode;
 }
