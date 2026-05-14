@@ -4,10 +4,11 @@ import { getSettingsCopy } from "./i18n";
 import { registerDateTokenDecorations } from "./date-token-decorations";
 import { TaskEventPipeline } from "./pipeline";
 import { DEFAULT_SETTINGS, TaskManagerSettingTab } from "./settings";
+import { TASK_SIDEBAR_VIEW_TYPE, TaskSidebarView } from "./task-sidebar-view";
 import { TaskArchiveService } from "./tasks/archive-service";
-import { isTaskArchivable } from "./tasks/task-line";
+import { isTaskArchivable, parseTaskLine, setTaskPriority } from "./tasks/task-line";
 import { TaskMonitorService } from "./tasks/task-monitor-service";
-import type { TaskManagerSettings } from "./types";
+import type { TaskManagerSettings, TaskPriority } from "./types";
 
 export default class TaskManagerPlugin extends Plugin {
   settings: TaskManagerSettings = DEFAULT_SETTINGS;
@@ -31,7 +32,13 @@ export default class TaskManagerPlugin extends Plugin {
     this.monitorService.registerDefaultHandlers();
     this.monitorService.start();
     registerDateTokenDecorations(this);
+    this.registerView(
+      TASK_SIDEBAR_VIEW_TYPE,
+      (leaf) => new TaskSidebarView(leaf, this),
+    );
     this.registerArchiveUi();
+    this.registerPriorityUi();
+    this.registerTaskSidebarUi();
 
     this.addSettingTab(
       new TaskManagerSettingTab(this.app, this, async () => {
@@ -41,6 +48,7 @@ export default class TaskManagerPlugin extends Plugin {
   }
 
   onunload(): void {
+    this.app.workspace.detachLeavesOfType(TASK_SIDEBAR_VIEW_TYPE);
     this.monitorService?.stop();
   }
 
@@ -78,6 +86,98 @@ export default class TaskManagerPlugin extends Plugin {
         );
       }),
     );
+  }
+
+
+  private registerPriorityUi(): void {
+    const priorities: TaskPriority[] = ["urgent", "high", "medium", "low", "none"];
+
+    for (const priority of priorities) {
+      this.addCommand({
+        id: `set-task-priority-${priority}`,
+        name: `Set current task priority: ${priority}`,
+        editorCallback: (editor) => {
+          this.setCurrentTaskPriority(editor, priority);
+        },
+      });
+    }
+
+    this.registerEvent(
+      this.app.workspace.on("editor-menu", (menu, editor) => {
+        const lineText = editor.getLine(editor.getCursor().line);
+        if (!parseTaskLine(lineText)) {
+          return;
+        }
+
+        menu.addItem((item) =>
+          item
+            .setTitle("Task priority: urgent")
+            .setIcon("chevrons-up")
+            .onClick(() => this.setCurrentTaskPriority(editor, "urgent")),
+        );
+        menu.addItem((item) =>
+          item
+            .setTitle("Task priority: high")
+            .setIcon("chevron-up")
+            .onClick(() => this.setCurrentTaskPriority(editor, "high")),
+        );
+        menu.addItem((item) =>
+          item
+            .setTitle("Task priority: medium")
+            .setIcon("minus")
+            .onClick(() => this.setCurrentTaskPriority(editor, "medium")),
+        );
+        menu.addItem((item) =>
+          item
+            .setTitle("Task priority: low")
+            .setIcon("chevron-down")
+            .onClick(() => this.setCurrentTaskPriority(editor, "low")),
+        );
+        menu.addItem((item) =>
+          item
+            .setTitle("Task priority: none")
+            .setIcon("x")
+            .onClick(() => this.setCurrentTaskPriority(editor, "none")),
+        );
+      }),
+    );
+  }
+
+  private registerTaskSidebarUi(): void {
+    this.addRibbonIcon("list-checks", "Open Task Manager sidebar", () => {
+      void this.activateTaskSidebar();
+    });
+
+    this.addCommand({
+      id: "open-task-manager-sidebar",
+      name: "Open Task Manager sidebar",
+      callback: () => {
+        void this.activateTaskSidebar();
+      },
+    });
+  }
+
+  private setCurrentTaskPriority(editor: Editor, priority: TaskPriority): void {
+    const lineNumber = editor.getCursor().line;
+    const lineText = editor.getLine(lineNumber);
+    const nextLine = setTaskPriority(lineText, priority);
+    if (nextLine !== lineText) {
+      editor.setLine(lineNumber, nextLine);
+    }
+  }
+
+  private async activateTaskSidebar(): Promise<void> {
+    const existingLeaf = this.app.workspace.getLeavesOfType(TASK_SIDEBAR_VIEW_TYPE)[0];
+    if (existingLeaf) {
+      this.app.workspace.revealLeaf(existingLeaf);
+      return;
+    }
+
+    const leaf = this.app.workspace.getRightLeaf(false);
+    await leaf?.setViewState({ type: TASK_SIDEBAR_VIEW_TYPE, active: true });
+    if (leaf) {
+      this.app.workspace.revealLeaf(leaf);
+    }
   }
 
   private async archiveActiveFileTasks(): Promise<void> {
