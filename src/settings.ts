@@ -9,7 +9,6 @@ export const DEFAULT_SETTINGS: TaskManagerSettings = {
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
   timestampPrecision: "date",
-  hideMetadataTokens: false,
   immediateArchiveEnabled: false,
   languageMode: "auto",
 };
@@ -103,18 +102,6 @@ export class TaskManagerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.timestampPrecision)
           .onChange(async (value) => {
             this.plugin.settings.timestampPrecision = value as TaskManagerSettings["timestampPrecision"];
-            await this.onSave();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(copy.hideMetadataTokensName)
-      .setDesc(copy.hideMetadataTokensDesc)
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.hideMetadataTokens)
-          .onChange(async (value) => {
-            this.plugin.settings.hideMetadataTokens = value;
             await this.onSave();
           }),
       );
