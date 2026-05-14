@@ -2,7 +2,7 @@ import { App, Editor, EventRef, MarkdownView, Notice, TFile } from "obsidian";
 import { getSettingsCopy } from "../i18n";
 import { TaskEventPipeline } from "../pipeline";
 import type { TaskManagerSettings } from "../types";
-import { getCurrentDateStamp } from "../utils/date";
+import { getCurrentDateStamp, getCurrentTimestamp } from "../utils/date";
 import { isFileInsideFolder, isMarkdownFile } from "../utils/path";
 import type { ArchiveWriteResult, TaskArchiveService } from "./archive-service";
 import {
@@ -12,7 +12,9 @@ import {
   isEmptyUncheckedTask,
   isTaskArchivable,
   parseTaskLine,
+  removeDoneToken,
   wasTaskCompleted,
+  wasTaskReopened,
 } from "./task-line";
 
 export class TaskMonitorService {
@@ -105,6 +107,19 @@ export class TaskMonitorService {
       this.updateSnapshotFromEditor(event.file, event.editor);
     });
 
+    this.pipeline.on("taskReopened", (event) => {
+      const reopenedLine = removeDoneToken(event.currentLine);
+      if (reopenedLine === event.currentLine) {
+        return;
+      }
+
+      this.runWithSuppressedFile(event.file.path, () => {
+        event.editor.setLine(event.lineNumber, reopenedLine);
+      });
+
+      this.updateSnapshotFromEditor(event.file, event.editor);
+    });
+
     this.pipeline.on("taskCompleted", async (event) => {
       const doneToken = this.formatToken(
         this.getSettings().doneTokenFormat,
@@ -130,7 +145,10 @@ export class TaskMonitorService {
       );
 
       this.runWithSuppressedFile(event.file.path, () => {
-        this.removeLine(event.editor, event.lineNumber, event.currentLine);
+        if (archivedLine !== event.currentLine) {
+          event.editor.setLine(event.lineNumber, archivedLine);
+        }
+        this.removeLine(event.editor, event.lineNumber, archivedLine);
       });
 
       this.updateSnapshotFromEditor(event.file, event.editor);
@@ -159,7 +177,7 @@ export class TaskMonitorService {
     const currentLines = this.getEditorLines(editor);
     const previousLines = this.snapshots.get(file.path) ?? currentLines;
     const changedLineNumbers = this.getChangedLineNumbers(previousLines, currentLines);
-    const date = getCurrentDateStamp();
+    const date = getCurrentTimestamp(this.getSettings().timestampPrecision);
 
     for (const lineNumber of changedLineNumbers) {
       const currentLine = currentLines[lineNumber] ?? "";
@@ -175,6 +193,30 @@ export class TaskMonitorService {
 
       await this.pipeline.emit({
         type: "taskCreated",
+        file,
+        editor,
+        lineNumber,
+        previousLine,
+        currentLine,
+        parsedTask,
+        date,
+      });
+    }
+
+    for (const lineNumber of changedLineNumbers) {
+      const currentLine = currentLines[lineNumber] ?? "";
+      const previousLine = previousLines[lineNumber] ?? "";
+      if (!wasTaskReopened(previousLine, currentLine)) {
+        continue;
+      }
+
+      const parsedTask = parseTaskLine(currentLine);
+      if (!parsedTask) {
+        continue;
+      }
+
+      await this.pipeline.emit({
+        type: "taskReopened",
         file,
         editor,
         lineNumber,
