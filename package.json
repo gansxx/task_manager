@@ -1,6 +1,6 @@
 {
   "name": "task-manager",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "private": true,
   "description": "the plugin to manage tasks",
   "scripts": {

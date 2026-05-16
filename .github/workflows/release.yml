@@ -25,16 +25,27 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Validate release version
+      - name: Resolve release version
+        id: release_version
         shell: bash
         run: |
           MANIFEST_VERSION="$(node -p "require('./manifest.json').version")"
-          TAG_NAME="${GITHUB_REF_NAME}"
+          REF_NAME="${GITHUB_REF_NAME}"
+          REF_TYPE="${GITHUB_REF_TYPE}"
 
-          if [[ "$MANIFEST_VERSION" != "$TAG_NAME" ]]; then
-            echo "manifest.json version ($MANIFEST_VERSION) does not match tag ($TAG_NAME)."
-            exit 1
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            NORMALIZED_TAG="${REF_NAME#v}"
+            if [[ "$MANIFEST_VERSION" != "$NORMALIZED_TAG" ]]; then
+              echo "manifest.json version ($MANIFEST_VERSION) does not match tag ($REF_NAME)."
+              exit 1
+            fi
+            RELEASE_TAG="$REF_NAME"
+          else
+            RELEASE_TAG="$MANIFEST_VERSION"
           fi
+
+          echo "manifest_version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Build plugin
         run: npm run build
@@ -42,7 +53,7 @@ jobs:
       - name: Create GitHub release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.release_version.outputs.release_tag }}
           files: |
             manifest.json
             main.js
