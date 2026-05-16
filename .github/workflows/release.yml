@@ -25,25 +25,62 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Validate release version
+      - name: Resolve release version
+        id: release_version
         shell: bash
         run: |
           MANIFEST_VERSION="$(node -p "require('./manifest.json').version")"
-          TAG_NAME="${GITHUB_REF_NAME}"
+          REF_NAME="${GITHUB_REF_NAME}"
+          REF_TYPE="${GITHUB_REF_TYPE}"
 
-          if [[ "$MANIFEST_VERSION" != "$TAG_NAME" ]]; then
-            echo "manifest.json version ($MANIFEST_VERSION) does not match tag ($TAG_NAME)."
-            exit 1
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            NORMALIZED_TAG="${REF_NAME#v}"
+            if [[ "$MANIFEST_VERSION" != "$NORMALIZED_TAG" ]]; then
+              echo "manifest.json version ($MANIFEST_VERSION) does not match tag ($REF_NAME)."
+              exit 1
+            fi
+            RELEASE_TAG="$REF_NAME"
+          else
+            RELEASE_TAG="$MANIFEST_VERSION"
           fi
+
+          echo "manifest_version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Build plugin
         run: npm run build
 
+      - name: Prepare manual install package
+        id: manual_package
+        shell: bash
+        run: |
+          PLUGIN_ID="$(node -p "require('./manifest.json').id")"
+          VERSION="${{ steps.release_version.outputs.manifest_version }}"
+          PACKAGE_DIR="release/${PLUGIN_ID}"
+          PACKAGE_NAME="${PLUGIN_ID}-${VERSION}"
+          PACKAGE_ZIP="${PACKAGE_NAME}.zip"
+
+          rm -rf release "$PACKAGE_ZIP"
+          mkdir -p "$PACKAGE_DIR"
+          cp main.js manifest.json styles.css "$PACKAGE_DIR/"
+          (cd release && zip -r "../$PACKAGE_ZIP" "$PLUGIN_ID")
+
+          echo "package_dir=$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
+          echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "package_zip=$PACKAGE_ZIP" >> "$GITHUB_OUTPUT"
+
+      - name: Upload manual install package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.manual_package.outputs.package_name }}
+          path: ${{ steps.manual_package.outputs.package_dir }}
+
       - name: Create GitHub release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.release_version.outputs.release_tag }}
           files: |
             manifest.json
             main.js
             styles.css
+            ${{ steps.manual_package.outputs.package_zip }}
