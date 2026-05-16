@@ -31,6 +31,9 @@ interface SettingsCopy {
   timestampPrecisionSecond: string;
   hideMetadataTokensName: string;
   hideMetadataTokensDesc: string;
+  skipArchiveConfirmationName: string;
+  skipArchiveConfirmationDesc: string;
+  archiveDontAskAgainLabel: string;
   immediateArchiveName: string;
   immediateArchiveDesc: string;
   githubName: string;
@@ -79,7 +82,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     timestampPrecisionMinute: "分钟（YYYY-MM-DD HH:mm）",
     timestampPrecisionSecond: "秒（YYYY-MM-DD HH:mm:ss）",
     hideMetadataTokensName: "隐藏任务元数据标签",
-    hideMetadataTokensDesc: "开启后，在编辑器和阅读模式中隐藏 @start、@done、@priority、@from、@archived 等行内标签，减少标签过多对原文可读性的影响。",
+    hideMetadataTokensDesc: "默认关闭。开启后，在阅读模式中隐藏 @start、@done、@priority、@from、@archived 等行内标签；编辑器中保留可编辑标签以便正常打标签。",
+    skipArchiveConfirmationName: "跳过归档确认",
+    skipArchiveConfirmationDesc: "开启后，手动归档任务时不再显示确认框。也可以在归档确认框中勾选以后不再提示。",
+    archiveDontAskAgainLabel: "以后不再提示",
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
       "默认关闭。开启后勾选任务会立刻归档并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
@@ -127,7 +133,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     timestampPrecisionMinute: "Minute (YYYY-MM-DD HH:mm)",
     timestampPrecisionSecond: "Second (YYYY-MM-DD HH:mm:ss)",
     hideMetadataTokensName: "Hide task metadata tokens",
-    hideMetadataTokensDesc: "Hide inline @start, @done, @priority, @from, @archived tokens in editor and reading mode to keep task notes easier to read.",
+    hideMetadataTokensDesc: "Disabled by default. When enabled, hides inline @start, @done, @priority, @from, @archived tokens in reading mode while keeping editor tokens editable for tagging.",
+    skipArchiveConfirmationName: "Skip archive confirmation",
+    skipArchiveConfirmationDesc: "Do not show confirmation dialogs before manual archive actions. You can also enable this from the confirmation dialog.",
+    archiveDontAskAgainLabel: "Don't ask again",
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:
       "Disabled by default. When enabled, completed tasks are archived and removed from the source note immediately. When disabled, only the @done date is added.",

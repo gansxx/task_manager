@@ -10,7 +10,7 @@ import {
 import type { Plugin } from "obsidian";
 import { parseTaskLine } from "./tasks/task-line";
 
-const TOKEN_REGEX = /@(?:(start|done|archived)\([^)]+\)|(from)\("[^"]+"\)|(priority)\((none|low|medium|high|urgent)\))/gi;
+const TOKEN_REGEX = /@(?:(start|done|archived)\([^)]+\)|(from)\("[^"]+"\)|(priority)\((none|low|medium|high|urgent)\)|(comment)\("(?:\\"|[^"])*"\))/gi;
 const TOKEN_CLASS = "task-manager-date-token";
 
 class TaskDateTokenPluginValue {
@@ -157,7 +157,7 @@ function decorateRenderedTaskPriorities(el: HTMLElement): void {
 }
 
 function getTokenVariantClass(match: RegExpMatchArray | RegExpExecArray): string {
-  const tokenType = match[1] ?? match[2] ?? match[3] ?? "start";
+  const tokenType = match[1] ?? match[2] ?? match[3] ?? match[5] ?? "start";
 
   switch (tokenType.toLowerCase()) {
     case "done":
@@ -168,6 +168,8 @@ function getTokenVariantClass(match: RegExpMatchArray | RegExpExecArray): string
       return "is-archived";
     case "priority":
       return `is-priority is-priority-${match[4]?.toLowerCase() ?? "none"}`;
+    case "comment":
+      return "is-comment";
     default:
       return "is-start";
   }

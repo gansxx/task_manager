@@ -81,11 +81,27 @@
 }
 
 .task-manager-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   padding: var(--size-4-3);
+}
+
+.task-manager-sidebar-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--size-2-2);
 }
 
 .task-manager-sidebar-header h3 {
   margin: 0 0 var(--size-4-3);
+}
+
+.task-manager-sidebar-loading {
+  color: var(--text-accent);
+  font-size: var(--font-ui-smaller);
+  margin-bottom: var(--size-4-3);
 }
 
 .task-manager-sidebar-controls {
@@ -97,7 +113,12 @@
 
 .task-manager-sidebar-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--size-2-2);
+}
+
+.task-manager-sidebar-actions button {
+  flex: 1 1 auto;
 }
 
 .task-manager-sidebar-status,
@@ -109,21 +130,31 @@
 
 .task-manager-sidebar-list {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--size-2-2);
   margin-top: var(--size-4-2);
+  overflow-y: auto;
+  padding-right: var(--size-2-1);
 }
 
 .task-manager-sidebar-task {
+  background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-inline-start: 4px solid var(--task-manager-priority-color, var(--background-modifier-border));
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-m);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
   cursor: pointer;
-  padding: var(--size-2-3);
+  padding: var(--size-3-2);
 }
 
 .task-manager-sidebar-task:hover {
   background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+}
+
+.task-manager-sidebar-task.is-archived {
+  opacity: 0.82;
 }
 
 .task-manager-sidebar-task-title {
@@ -131,7 +162,8 @@
   font-weight: 500;
 }
 
-.task-manager-hide-metadata-tokens .task-manager-date-token {
+.markdown-preview-view.task-manager-hide-metadata-tokens .task-manager-date-token,
+.task-manager-hide-metadata-tokens .markdown-preview-view .task-manager-date-token {
   display: none;
 }
 
@@ -142,10 +174,26 @@
 }
 
 .task-manager-sidebar-date-filter,
-.task-manager-sidebar-priority-filter {
+.task-manager-sidebar-file-filter,
+.task-manager-sidebar-priority-filter,
+.task-manager-sidebar-archive-filter {
   width: 100%;
 }
 
 .task-manager-sidebar-date-separator {
   color: var(--text-muted);
+}
+
+
+.task-manager-sidebar-select-row {
+  display: grid;
+  gap: var(--size-2-2);
+  grid-template-columns: 1fr 1fr;
+}
+
+.task-manager-sidebar-select-row label,
+.task-manager-sidebar-controls label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
 }

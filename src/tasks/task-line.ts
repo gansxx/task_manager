@@ -5,6 +5,7 @@ const TASK_LINE_REGEX = /^(\s*)-\s\[( |x|X)\]\s?(.*)$/;
 const START_TOKEN_REGEX = /@start\(([^)]+)\)/;
 const DONE_TOKEN_REGEX = /@done\(([^)]+)\)/;
 const PRIORITY_TOKEN_REGEX = /\s*@priority\((none|low|medium|high|urgent)\)/i;
+const COMMENT_TOKEN_REGEX = /\s*@comment\("(?:\\"|[^"])*"\)/g;
 
 export function parseTaskLine(line: string): ParsedTaskLine | null {
   const match = TASK_LINE_REGEX.exec(line);
@@ -74,6 +75,27 @@ export function setTaskPriority(line: string, priority: TaskPriority): string {
   const body = `${bodyWithoutPriority}${priorityToken}`.trim();
   const marker = parsed.checked ? "x" : " ";
   return `${parsed.indent}- [${marker}] ${body}`.trimEnd();
+}
+
+export function appendTaskComment(line: string, comment: string): string {
+  const parsed = parseTaskLine(line);
+  const trimmedComment = comment.trim();
+  if (!parsed || !trimmedComment) {
+    return line;
+  }
+
+  const escapedComment = trimmedComment.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const marker = parsed.checked ? "x" : " ";
+  return `${parsed.indent}- [${marker}] ${parsed.body} @comment("${escapedComment}")`.trimEnd();
+}
+
+export function stripMetadataTokens(value: string): string {
+  return value
+    .replace(/@(?:start|done|priority|archived)\([^)]+\)/g, "")
+    .replace(/@from\("[^"]+"\)/g, "")
+    .replace(COMMENT_TOKEN_REGEX, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 export function getTaskReferenceDate(line: string): string | null {

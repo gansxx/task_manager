@@ -9,7 +9,8 @@ export const DEFAULT_SETTINGS: TaskManagerSettings = {
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
   timestampPrecision: "date",
-  hideMetadataTokens: true,
+  hideMetadataTokens: false,
+  skipArchiveConfirmation: false,
   immediateArchiveEnabled: false,
   languageMode: "auto",
 };
@@ -115,6 +116,18 @@ export class TaskManagerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.hideMetadataTokens)
           .onChange(async (value) => {
             this.plugin.settings.hideMetadataTokens = value;
+            await this.onSave();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.skipArchiveConfirmationName)
+      .setDesc(copy.skipArchiveConfirmationDesc)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.skipArchiveConfirmation)
+          .onChange(async (value) => {
+            this.plugin.settings.skipArchiveConfirmation = value;
             await this.onSave();
           }),
       );

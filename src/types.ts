@@ -11,6 +11,7 @@ export interface TaskManagerSettings {
   doneTokenFormat: string;
   timestampPrecision: TimestampPrecision;
   hideMetadataTokens: boolean;
+  skipArchiveConfirmation: boolean;
   immediateArchiveEnabled: boolean;
   languageMode: TaskManagerLanguageMode;
 }

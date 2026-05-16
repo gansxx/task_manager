@@ -274,7 +274,11 @@ export default class TaskManagerPlugin extends Plugin {
   }
 
   private async confirmArchive(message: string): Promise<boolean> {
-    return await new Promise<boolean>((resolve) => {
+    if (this.settings.skipArchiveConfirmation) {
+      return true;
+    }
+
+    const result = await new Promise<{ confirmed: boolean; dontAskAgain: boolean }>((resolve) => {
       new ConfirmModal(
         this.app,
         this.copy.archiveConfirmTitle,
@@ -282,8 +286,16 @@ export default class TaskManagerPlugin extends Plugin {
         this.copy.archiveConfirmButton,
         this.copy.archiveCancelButton,
         resolve,
+        this.copy.archiveDontAskAgainLabel,
       ).open();
     });
+
+    if (result.confirmed && result.dontAskAgain) {
+      this.settings.skipArchiveConfirmation = true;
+      await this.saveSettings();
+    }
+
+    return result.confirmed;
   }
 
   private get copy() {
