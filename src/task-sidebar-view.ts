@@ -305,24 +305,26 @@ export class TaskSidebarView extends ItemView {
       return;
     }
 
-    const taskByLine = new Map(visibleTasks.map((task) => [task.lineNumber, task]));
+    const taskById = new Map(visibleTasks.map((task) => [getTaskId(task), task]));
     const roots = visibleTasks.filter(
-      (task) => task.parentLineNumber === null || !taskByLine.has(task.parentLineNumber),
+      (task) =>
+        task.parentLineNumber === null ||
+        !taskById.has(getTaskIdForLine(task.file.path, task.parentLineNumber)),
     );
 
     for (const task of roots) {
-      this.renderTaskNode(task, taskByLine, this.taskListEl, 0);
+      this.renderTaskNode(task, taskById, this.taskListEl, 0);
     }
   }
 
   private renderTaskNode(
     task: SidebarTask,
-    taskByLine: Map<number, SidebarTask>,
+    taskById: Map<string, SidebarTask>,
     container: HTMLElement,
     depth: number,
   ): void {
     const childTasks = task.childLineNumbers
-      .map((lineNumber) => taskByLine.get(lineNumber))
+      .map((lineNumber) => taskById.get(getTaskIdForLine(task.file.path, lineNumber)))
       .filter((child): child is SidebarTask => Boolean(child));
     const taskId = getTaskId(task);
     const hasChildren = childTasks.length > 0 || task.comments.length > 0;
@@ -385,27 +387,29 @@ export class TaskSidebarView extends ItemView {
         });
       }
       for (const child of childTasks) {
-        this.renderTaskNode(child, taskByLine, childrenEl, depth + 1);
+        this.renderTaskNode(child, taskById, childrenEl, depth + 1);
       }
     }
   }
 
   private getVisibleTasks(tasks: SidebarTask[], filters: SidebarFilters): SidebarTask[] {
-    const taskByLine = new Map(tasks.map((task) => [task.lineNumber, task]));
+    const taskById = new Map(tasks.map((task) => [getTaskId(task), task]));
     const directMatches = new Set(
-      tasks.filter((task) => this.matchesFilters(task, filters)).map((task) => task.lineNumber),
+      tasks.filter((task) => this.matchesFilters(task, filters)).map((task) => getTaskId(task)),
     );
-    const visible = new Set<number>();
+    const visible = new Set<string>();
 
-    for (const lineNumber of directMatches) {
-      let current = taskByLine.get(lineNumber);
+    for (const taskId of directMatches) {
+      let current = taskById.get(taskId);
       while (current) {
-        visible.add(current.lineNumber);
-        current = current.parentLineNumber === null ? undefined : taskByLine.get(current.parentLineNumber);
+        visible.add(getTaskId(current));
+        current = current.parentLineNumber === null
+          ? undefined
+          : taskById.get(getTaskIdForLine(current.file.path, current.parentLineNumber));
       }
     }
 
-    return tasks.filter((task) => visible.has(task.lineNumber));
+    return tasks.filter((task) => visible.has(getTaskId(task)));
   }
 
   private getFilters(): SidebarFilters {
@@ -775,7 +779,11 @@ function priorityWeight(priority: TaskPriority): number {
 }
 
 function getTaskId(task: SidebarTask): string {
-  return `${task.file.path}:${task.lineNumber}`;
+  return getTaskIdForLine(task.file.path, task.lineNumber);
+}
+
+function getTaskIdForLine(filePath: string, lineNumber: number): string {
+  return `${filePath}:${lineNumber}`;
 }
 
 function getIndentLevel(indent: string): number {
