@@ -121,18 +121,6 @@ export class TaskManagerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName(copy.skipArchiveConfirmationName)
-      .setDesc(copy.skipArchiveConfirmationDesc)
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.skipArchiveConfirmation)
-          .onChange(async (value) => {
-            this.plugin.settings.skipArchiveConfirmation = value;
-            await this.onSave();
-          }),
-      );
-
-    new Setting(containerEl)
       .setName(copy.immediateArchiveName)
       .setDesc(copy.immediateArchiveDesc)
       .addToggle((toggle) =>

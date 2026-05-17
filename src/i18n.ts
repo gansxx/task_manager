@@ -31,8 +31,6 @@ interface SettingsCopy {
   timestampPrecisionSecond: string;
   hideMetadataTokensName: string;
   hideMetadataTokensDesc: string;
-  skipArchiveConfirmationName: string;
-  skipArchiveConfirmationDesc: string;
   archiveDontAskAgainLabel: string;
   immediateArchiveName: string;
   immediateArchiveDesc: string;
@@ -83,8 +81,6 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     timestampPrecisionSecond: "秒（YYYY-MM-DD HH:mm:ss）",
     hideMetadataTokensName: "隐藏任务元数据标签",
     hideMetadataTokensDesc: "默认关闭。开启后，在阅读模式中隐藏 @start、@done、@priority、@from、@archived 等行内标签；编辑器中保留可编辑标签以便正常打标签。",
-    skipArchiveConfirmationName: "跳过归档确认",
-    skipArchiveConfirmationDesc: "开启后，手动归档任务时不再显示确认框。也可以在归档确认框中勾选以后不再提示。",
     archiveDontAskAgainLabel: "以后不再提示",
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
@@ -134,8 +130,6 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     timestampPrecisionSecond: "Second (YYYY-MM-DD HH:mm:ss)",
     hideMetadataTokensName: "Hide task metadata tokens",
     hideMetadataTokensDesc: "Disabled by default. When enabled, hides inline @start, @done, @priority, @from, @archived tokens in reading mode while keeping editor tokens editable for tagging.",
-    skipArchiveConfirmationName: "Skip archive confirmation",
-    skipArchiveConfirmationDesc: "Do not show confirmation dialogs before manual archive actions. You can also enable this from the confirmation dialog.",
     archiveDontAskAgainLabel: "Don't ask again",
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:

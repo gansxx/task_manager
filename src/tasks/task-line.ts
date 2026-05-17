@@ -5,7 +5,7 @@ const TASK_LINE_REGEX = /^(\s*)-\s\[( |x|X)\]\s?(.*)$/;
 const START_TOKEN_REGEX = /@start\(([^)]+)\)/;
 const DONE_TOKEN_REGEX = /@done\(([^)]+)\)/;
 const PRIORITY_TOKEN_REGEX = /\s*@priority\((none|low|medium|high|urgent)\)/i;
-const COMMENT_TOKEN_REGEX = /\s*@comment\("(?:\\"|[^"])*"\)/g;
+const COMMENT_TOKEN_REGEX = /\s*@comment(?:\("(?:\\"|[^"])*"\))?/g;
 
 export function parseTaskLine(line: string): ParsedTaskLine | null {
   const match = TASK_LINE_REGEX.exec(line);
@@ -84,9 +84,7 @@ export function appendTaskComment(line: string, comment: string): string {
     return line;
   }
 
-  const escapedComment = trimmedComment.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const marker = parsed.checked ? "x" : " ";
-  return `${parsed.indent}- [${marker}] ${parsed.body} @comment("${escapedComment}")`.trimEnd();
+  return `${line}\n${parsed.indent}\t- ${trimmedComment} @comment`;
 }
 
 export function stripMetadataTokens(value: string): string {

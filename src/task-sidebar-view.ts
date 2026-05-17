@@ -35,6 +35,10 @@ interface SidebarTask {
   date: string | null;
   priority: TaskPriority;
   archived: boolean;
+  indentLevel: number;
+  parentLineNumber: number | null;
+  childLineNumbers: number[];
+  comments: string[];
 }
 
 interface CachedSidebarTask extends Omit<SidebarTask, "file"> {
@@ -57,12 +61,14 @@ export class TaskSidebarView extends ItemView {
   private endDateInputEl?: HTMLInputElement;
   private prioritySelectEl?: HTMLSelectElement;
   private archiveSelectEl?: HTMLSelectElement;
+  private folderSelectEl?: HTMLSelectElement;
   private filePathInputEl?: HTMLInputElement;
   private taskListEl?: HTMLElement;
   private statusEl?: HTMLElement;
   private loadingEl?: HTMLElement;
   private fileScope: FileScopeFilter = "current";
   private refreshId = 0;
+  private readonly collapsedTaskIds = new Set<string>();
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -110,7 +116,10 @@ export class TaskSidebarView extends ItemView {
     header.createEl("h3", { text: "Tasks" });
     this.loadingEl = header.createDiv({ cls: "task-manager-sidebar-loading" });
 
-    const controls = container.createDiv({ cls: "task-manager-sidebar-controls" });
+    const filterDetails = container.createEl("details", { cls: "task-manager-sidebar-filter-details" });
+    filterDetails.open = true;
+    filterDetails.createEl("summary", { text: "Filters" });
+    const controls = filterDetails.createDiv({ cls: "task-manager-sidebar-controls" });
     controls.createEl("label", { text: "File path" });
     this.filePathInputEl = controls.createEl("input", {
       type: "text",
@@ -119,6 +128,21 @@ export class TaskSidebarView extends ItemView {
     });
     this.filePathInputEl.addEventListener("input", () => {
       this.fileScope = this.filePathInputEl?.value.trim() ? "path" : "vault";
+      void this.refreshTasks();
+    });
+    this.folderSelectEl = controls.createEl("select", {
+      cls: "task-manager-sidebar-folder-filter",
+    });
+    this.populateFolderSelect();
+    this.folderSelectEl.addEventListener("change", () => {
+      const value = this.folderSelectEl?.value ?? "";
+      if (!value) {
+        return;
+      }
+      this.fileScope = "path";
+      if (this.filePathInputEl) {
+        this.filePathInputEl.value = value;
+      }
       void this.refreshTasks();
     });
 
@@ -194,6 +218,7 @@ export class TaskSidebarView extends ItemView {
     ] as const) {
       this.archiveSelectEl.createEl("option", { value, text: label });
     }
+    this.archiveSelectEl.value = "active";
     this.archiveSelectEl.addEventListener("change", () => void this.refreshTasks());
 
     const buttonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
@@ -221,7 +246,7 @@ export class TaskSidebarView extends ItemView {
         this.prioritySelectEl.value = "all";
       }
       if (this.archiveSelectEl) {
-        this.archiveSelectEl.value = "all";
+        this.archiveSelectEl.value = "active";
       }
       void this.refreshTasks();
     });
@@ -238,7 +263,7 @@ export class TaskSidebarView extends ItemView {
     const refreshId = ++this.refreshId;
     const filters = this.getFilters();
     this.setLoading(true);
-    this.renderTasks(this.getCachedTasks().filter((task) => this.matchesFilters(task, filters)), filters, true);
+    this.renderTasks(this.getCachedTasks(), filters, true);
 
     const tasks = await this.collectTasks();
     if (refreshId !== this.refreshId) {
@@ -253,10 +278,14 @@ export class TaskSidebarView extends ItemView {
       date: task.date,
       priority: task.priority,
       archived: task.archived,
+      indentLevel: task.indentLevel,
+      parentLineNumber: task.parentLineNumber,
+      childLineNumbers: task.childLineNumbers,
+      comments: task.comments,
     }));
 
     this.setLoading(false);
-    this.renderTasks(tasks.filter((task) => this.matchesFilters(task, filters)), filters, false);
+    this.renderTasks(tasks, filters, false);
   }
 
   private renderTasks(tasks: SidebarTask[], filters: SidebarFilters, loading: boolean): void {
@@ -264,10 +293,11 @@ export class TaskSidebarView extends ItemView {
       return;
     }
 
+    const visibleTasks = this.getVisibleTasks(tasks, filters);
     this.taskListEl.empty();
-    this.statusEl.setText(`${tasks.length} task(s)${this.describeFilters(filters)}${loading ? " · loading…" : ""}`);
+    this.statusEl.setText(`${visibleTasks.length} task(s)${this.describeFilters(filters)}${loading ? " · loading…" : ""}`);
 
-    if (tasks.length === 0) {
+    if (visibleTasks.length === 0) {
       this.taskListEl.createDiv({
         cls: "task-manager-sidebar-empty",
         text: loading ? "Loading tasks…" : "No tasks found.",
@@ -275,35 +305,107 @@ export class TaskSidebarView extends ItemView {
       return;
     }
 
-    for (const task of tasks) {
-      const item = this.taskListEl.createDiv({
-        cls: `task-manager-sidebar-task is-priority-${task.priority}${task.archived ? " is-archived" : ""}`,
-      });
-      const title = item.createDiv({
-        cls: "task-manager-sidebar-task-title",
-        text: stripMetadataTokens(task.text),
-      });
-      if (!title.textContent?.trim()) {
-        title.setText("(empty task)");
-      }
+    const taskByLine = new Map(visibleTasks.map((task) => [task.lineNumber, task]));
+    const roots = visibleTasks.filter(
+      (task) => task.parentLineNumber === null || !taskByLine.has(task.parentLineNumber),
+    );
 
-      const meta = item.createDiv({ cls: "task-manager-sidebar-task-meta" });
-      meta.createSpan({ text: task.file.path });
-      if (task.date) {
-        meta.createSpan({ text: ` · ${task.date}` });
-      }
-      if (task.priority !== "none") {
-        meta.createSpan({ text: ` · ${task.priority}` });
-      }
-      if (task.archived) {
-        meta.createSpan({ text: " · archived" });
-      }
-      item.addEventListener("click", () => void this.openTask(task));
-      item.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        this.openTaskMenu(task, event);
-      });
+    for (const task of roots) {
+      this.renderTaskNode(task, taskByLine, this.taskListEl, 0);
     }
+  }
+
+  private renderTaskNode(
+    task: SidebarTask,
+    taskByLine: Map<number, SidebarTask>,
+    container: HTMLElement,
+    depth: number,
+  ): void {
+    const childTasks = task.childLineNumbers
+      .map((lineNumber) => taskByLine.get(lineNumber))
+      .filter((child): child is SidebarTask => Boolean(child));
+    const taskId = getTaskId(task);
+    const hasChildren = childTasks.length > 0 || task.comments.length > 0;
+    const collapsed = this.collapsedTaskIds.has(taskId);
+    const item = container.createDiv({
+      cls: `task-manager-sidebar-task is-priority-${task.priority}${task.archived ? " is-archived" : ""}`,
+    });
+    item.style.setProperty("--task-manager-task-depth", String(depth));
+
+    const row = item.createDiv({ cls: "task-manager-sidebar-task-row" });
+    const toggle = row.createEl("button", {
+      cls: "task-manager-sidebar-task-toggle",
+      text: hasChildren ? (collapsed ? "▸" : "▾") : "•",
+    });
+    toggle.disabled = !hasChildren;
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (collapsed) {
+        this.collapsedTaskIds.delete(taskId);
+      } else {
+        this.collapsedTaskIds.add(taskId);
+      }
+      this.renderTasks(this.getCachedTasks(), this.getFilters(), false);
+    });
+
+    const content = row.createDiv({ cls: "task-manager-sidebar-task-content" });
+    const title = content.createDiv({
+      cls: "task-manager-sidebar-task-title",
+      text: stripMetadataTokens(task.text),
+    });
+    if (!title.textContent?.trim()) {
+      title.setText("(empty task)");
+    }
+
+    const meta = content.createDiv({ cls: "task-manager-sidebar-task-meta" });
+    meta.createSpan({ text: task.file.path });
+    if (task.date) {
+      meta.createSpan({ text: ` · ${task.date}` });
+    }
+    if (task.priority !== "none") {
+      meta.createSpan({ text: ` · ${task.priority}` });
+    }
+    if (task.archived) {
+      meta.createSpan({ text: " · archived" });
+    }
+
+    item.addEventListener("click", () => void this.openTask(task));
+    item.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      this.openTaskMenu(task, event);
+    });
+
+    if (!collapsed && hasChildren) {
+      const childrenEl = container.createDiv({ cls: "task-manager-sidebar-children" });
+      childrenEl.style.setProperty("--task-manager-task-depth", String(depth + 1));
+      for (const comment of task.comments) {
+        childrenEl.createDiv({
+          cls: "task-manager-sidebar-comment",
+          text: stripMetadataTokens(comment),
+        });
+      }
+      for (const child of childTasks) {
+        this.renderTaskNode(child, taskByLine, childrenEl, depth + 1);
+      }
+    }
+  }
+
+  private getVisibleTasks(tasks: SidebarTask[], filters: SidebarFilters): SidebarTask[] {
+    const taskByLine = new Map(tasks.map((task) => [task.lineNumber, task]));
+    const directMatches = new Set(
+      tasks.filter((task) => this.matchesFilters(task, filters)).map((task) => task.lineNumber),
+    );
+    const visible = new Set<number>();
+
+    for (const lineNumber of directMatches) {
+      let current = taskByLine.get(lineNumber);
+      while (current) {
+        visible.add(current.lineNumber);
+        current = current.parentLineNumber === null ? undefined : taskByLine.get(current.parentLineNumber);
+      }
+    }
+
+    return tasks.filter((task) => visible.has(task.lineNumber));
   }
 
   private getFilters(): SidebarFilters {
@@ -311,7 +413,7 @@ export class TaskSidebarView extends ItemView {
       startDate: this.startDateInputEl?.value.trim() ?? "",
       endDate: this.endDateInputEl?.value.trim() ?? "",
       priority: (this.prioritySelectEl?.value as PriorityFilter | undefined) ?? "all",
-      archive: (this.archiveSelectEl?.value as ArchiveFilter | undefined) ?? "all",
+      archive: (this.archiveSelectEl?.value as ArchiveFilter | undefined) ?? "active",
       filePath: this.filePathInputEl?.value.trim() ?? "",
       fileScope: this.fileScope,
     });
@@ -395,6 +497,18 @@ export class TaskSidebarView extends ItemView {
     return descriptions.join("");
   }
 
+  private populateFolderSelect(): void {
+    if (!this.folderSelectEl) {
+      return;
+    }
+
+    this.folderSelectEl.empty();
+    this.folderSelectEl.createEl("option", { value: "", text: "Select folder…" });
+    for (const folderPath of getMarkdownFolderOptions(this.app.vault.getMarkdownFiles())) {
+      this.folderSelectEl.createEl("option", { value: folderPath, text: folderPath || "/" });
+    }
+  }
+
   private initializeFileFilter(): void {
     const watchedFolder = this.plugin.settings.watchedFolder.trim();
     if (watchedFolder) {
@@ -454,15 +568,26 @@ export class TaskSidebarView extends ItemView {
       }
 
       const content = await this.app.vault.cachedRead(file);
+      const stack: SidebarTask[] = [];
       content.split("\n").forEach((line, index) => {
         const parsedTask = parseTaskLine(line);
         if (!parsedTask) {
+          const comment = parseCommentLine(line);
+          if (comment) {
+            const parent = [...stack].reverse().find((task) => task.indentLevel < comment.indentLevel);
+            parent?.comments.push(comment.text);
+          }
           return;
         }
 
+        const indentLevel = getIndentLevel(parsedTask.indent);
+        while (stack.length > 0 && stack[stack.length - 1].indentLevel >= indentLevel) {
+          stack.pop();
+        }
+        const parent = stack[stack.length - 1] ?? null;
         const tokenDate = parsedTask.doneToken ?? parsedTask.startToken;
         const date = tokenDate ? getDatePart(tokenDate.replace(/^@\w+\(|\)$/g, "")) : null;
-        tasks.push({
+        const task: SidebarTask = {
           file,
           lineNumber: index,
           text: parsedTask.body,
@@ -470,7 +595,14 @@ export class TaskSidebarView extends ItemView {
           date,
           priority: parsedTask.priority,
           archived: /@archived\([^)]+\)/.test(parsedTask.body),
-        });
+          indentLevel,
+          parentLineNumber: parent?.lineNumber ?? null,
+          childLineNumbers: [],
+          comments: [],
+        };
+        parent?.childLineNumbers.push(task.lineNumber);
+        tasks.push(task);
+        stack.push(task);
       });
     }
 
@@ -640,6 +772,38 @@ function priorityWeight(priority: TaskPriority): number {
     default:
       return 0;
   }
+}
+
+function getTaskId(task: SidebarTask): string {
+  return `${task.file.path}:${task.lineNumber}`;
+}
+
+function getIndentLevel(indent: string): number {
+  return [...indent].reduce((level, character) => level + (character === "\t" ? 1 : 0.25), 0);
+}
+
+function parseCommentLine(line: string): { indentLevel: number; text: string } | null {
+  const match = /^(\s*)-\s+(.*?)\s*@comment\s*$/.exec(line);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    indentLevel: getIndentLevel(match[1]),
+    text: match[2],
+  };
+}
+
+function getMarkdownFolderOptions(files: TFile[]): string[] {
+  const folders = new Set<string>();
+  for (const file of files) {
+    const lastSlashIndex = file.path.lastIndexOf("/");
+    if (lastSlashIndex > 0) {
+      folders.add(file.path.slice(0, lastSlashIndex));
+    }
+  }
+
+  return [...folders].sort((a, b) => a.localeCompare(b));
 }
 
 function matchesFilePath(file: TFile, path: string): boolean {

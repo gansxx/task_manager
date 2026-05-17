@@ -197,3 +197,66 @@
   font-size: var(--font-ui-smaller);
   font-weight: 600;
 }
+
+.markdown-source-view.mod-cm6.is-live-preview.task-manager-hide-metadata-tokens .task-manager-date-token,
+.task-manager-hide-metadata-tokens .markdown-source-view.mod-cm6.is-live-preview .task-manager-date-token {
+  display: none;
+}
+
+.task-manager-comment-line,
+.task-manager-comment-item {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.task-manager-sidebar-filter-details {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  margin-bottom: var(--size-4-3);
+  padding: var(--size-2-3);
+}
+
+.task-manager-sidebar-filter-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.task-manager-sidebar-task-row {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--size-2-2);
+}
+
+.task-manager-sidebar-task-toggle {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+  flex: 0 0 1.5em;
+  padding: 0;
+}
+
+.task-manager-sidebar-task-content {
+  min-width: 0;
+}
+
+.task-manager-sidebar-task-title {
+  font-family: var(--font-text);
+  font-size: var(--font-ui-medium);
+  line-height: 1.45;
+}
+
+.task-manager-sidebar-children {
+  border-inline-start: 1px solid var(--background-modifier-border);
+  margin-inline-start: calc(0.75em + var(--task-manager-task-depth, 0) * 0.5em);
+  padding-inline-start: var(--size-4-2);
+}
+
+.task-manager-sidebar-comment {
+  color: var(--text-muted);
+  font-family: var(--font-text);
+  font-size: var(--font-ui-small);
+  font-style: italic;
+  line-height: 1.45;
+  margin: var(--size-2-1) 0;
+}

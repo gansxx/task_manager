@@ -10,7 +10,7 @@ import {
 import type { Plugin } from "obsidian";
 import { parseTaskLine } from "./tasks/task-line";
 
-const TOKEN_REGEX = /@(?:(start|done|archived)\([^)]+\)|(from)\("[^"]+"\)|(priority)\((none|low|medium|high|urgent)\)|(comment)\("(?:\\"|[^"])*"\))/gi;
+const TOKEN_REGEX = /@(?:(start|done|archived)\([^)]+\)|(from)\("[^"]+"\)|(priority)\((none|low|medium|high|urgent)\)|(comment)(?:\("(?:\\"|[^"])*"\))?)/gi;
 const TOKEN_CLASS = "task-manager-date-token";
 
 class TaskDateTokenPluginValue {
@@ -93,6 +93,13 @@ function buildDecorations(view: EditorView): DecorationSet {
           }),
         );
       }
+      if (/^\s*-\s+.*@comment\s*$/.test(line.text)) {
+        builder.add(
+          line.from,
+          line.from,
+          Decoration.line({ class: "task-manager-comment-line" }),
+        );
+      }
 
       TOKEN_REGEX.lastIndex = 0;
       for (const match of line.text.matchAll(TOKEN_REGEX)) {
@@ -153,6 +160,12 @@ function decorateRenderedTaskPriorities(el: HTMLElement): void {
 
     taskEl.addClass("task-manager-priority-item");
     taskEl.addClass(`is-priority-${parsedTask.priority}`);
+  }
+
+  for (const commentEl of el.querySelectorAll<HTMLElement>("li")) {
+    if (/@comment\s*$/.test(commentEl.textContent ?? "")) {
+      commentEl.addClass("task-manager-comment-item");
+    }
   }
 }
 
