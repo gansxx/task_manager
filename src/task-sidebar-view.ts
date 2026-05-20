@@ -10,7 +10,7 @@ import {
   TFile,
   WorkspaceLeaf,
 } from "obsidian";
-import { resolveLocale } from "./i18n";
+import { getSettingsCopy, resolveLocale } from "./i18n";
 import type TaskManagerPlugin from "./main";
 import {
   appendTaskComment,
@@ -110,24 +110,25 @@ export class TaskSidebarView extends ItemView {
 
   private renderShell(): void {
     const uiLanguageTag = this.getUiLanguageTag();
+    const copy = this.copy;
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("task-manager-sidebar");
     container.setAttr("lang", uiLanguageTag);
 
     const header = container.createDiv({ cls: "task-manager-sidebar-header" });
-    header.createEl("h3", { text: "Tasks" });
+    header.createEl("h3", { text: copy.sidebarTitle });
     this.loadingEl = header.createDiv({ cls: "task-manager-sidebar-loading" });
 
     const filterDetails = container.createEl("details", { cls: "task-manager-sidebar-filter-details" });
     filterDetails.open = true;
-    filterDetails.createEl("summary", { text: "Filters" });
+    filterDetails.createEl("summary", { text: copy.sidebarFiltersSummary });
     const controls = filterDetails.createDiv({ cls: "task-manager-sidebar-controls" });
-    controls.createEl("label", { text: "File path" });
+    controls.createEl("label", { text: copy.sidebarFilePathLabel });
     this.filePathInputEl = controls.createEl("input", {
       type: "text",
       cls: "task-manager-sidebar-file-filter",
-      placeholder: "Current file, folder, or blank for vault",
+      placeholder: copy.sidebarFilePathPlaceholder,
     });
     this.filePathInputEl.addEventListener("input", () => {
       this.fileScope = this.filePathInputEl?.value.trim() ? "path" : "vault";
@@ -150,13 +151,13 @@ export class TaskSidebarView extends ItemView {
     });
 
     const fileButtonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
-    const currentFileButton = fileButtonRow.createEl("button", { text: "Current file" });
+    const currentFileButton = fileButtonRow.createEl("button", { text: copy.sidebarCurrentFileButton });
     currentFileButton.addEventListener("click", () => {
       this.fileScope = "current";
       this.setFilePathToActiveFile();
       void this.refreshTasks();
     });
-    const vaultButton = fileButtonRow.createEl("button", { text: "Whole vault" });
+    const vaultButton = fileButtonRow.createEl("button", { text: copy.sidebarWholeVaultButton });
     vaultButton.addEventListener("click", () => {
       this.fileScope = "vault";
       if (this.filePathInputEl) {
@@ -164,7 +165,7 @@ export class TaskSidebarView extends ItemView {
       }
       void this.refreshTasks();
     });
-    const archiveRootButton = fileButtonRow.createEl("button", { text: "Archive" });
+    const archiveRootButton = fileButtonRow.createEl("button", { text: copy.sidebarArchiveButton });
     archiveRootButton.addEventListener("click", () => {
       this.fileScope = "path";
       if (this.filePathInputEl) {
@@ -177,7 +178,7 @@ export class TaskSidebarView extends ItemView {
     });
     this.initializeFileFilter();
 
-    controls.createEl("label", { text: "Date range" });
+    controls.createEl("label", { text: copy.sidebarDateRangeLabel });
     const dateRangeRow = controls.createDiv({ cls: "task-manager-sidebar-date-range" });
     this.startDateInputEl = dateRangeRow.createEl("input", {
       type: "date",
@@ -195,31 +196,31 @@ export class TaskSidebarView extends ItemView {
 
     const selectRow = controls.createDiv({ cls: "task-manager-sidebar-select-row" });
     const priorityColumn = selectRow.createDiv();
-    priorityColumn.createEl("label", { text: "Priority" });
+    priorityColumn.createEl("label", { text: copy.sidebarPriorityLabel });
     this.prioritySelectEl = priorityColumn.createEl("select", {
       cls: "task-manager-sidebar-priority-filter",
     });
     for (const [value, label] of [
-      ["all", "All priorities"],
-      ["urgent", "Urgent"],
-      ["high", "High"],
-      ["medium", "Medium"],
-      ["low", "Low"],
-      ["none", "No priority"],
+      ["all", copy.sidebarPriorityAll],
+      ["urgent", copy.sidebarPriorityUrgent],
+      ["high", copy.sidebarPriorityHigh],
+      ["medium", copy.sidebarPriorityMedium],
+      ["low", copy.sidebarPriorityLow],
+      ["none", copy.sidebarPriorityNone],
     ] as const) {
       this.prioritySelectEl.createEl("option", { value, text: label });
     }
     this.prioritySelectEl.addEventListener("change", () => void this.refreshTasks());
 
     const archiveColumn = selectRow.createDiv();
-    archiveColumn.createEl("label", { text: "Archive" });
+    archiveColumn.createEl("label", { text: copy.sidebarArchiveLabel });
     this.archiveSelectEl = archiveColumn.createEl("select", {
       cls: "task-manager-sidebar-archive-filter",
     });
     for (const [value, label] of [
-      ["all", "All tasks"],
-      ["active", "Not archived"],
-      ["archived", "Archived"],
+      ["all", copy.sidebarArchiveAll],
+      ["active", copy.sidebarArchiveActive],
+      ["archived", copy.sidebarArchiveArchived],
     ] as const) {
       this.archiveSelectEl.createEl("option", { value, text: label });
     }
@@ -227,23 +228,23 @@ export class TaskSidebarView extends ItemView {
     this.archiveSelectEl.addEventListener("change", () => void this.refreshTasks());
 
     const buttonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
-    const todayButton = buttonRow.createEl("button", { text: "Today" });
+    const todayButton = buttonRow.createEl("button", { text: copy.sidebarTodayButton });
     todayButton.addEventListener("click", () => {
       const today = formatDateInputValue(new Date());
       this.setDateRange(today, today);
       void this.refreshTasks();
     });
-    const weekButton = buttonRow.createEl("button", { text: "7 days" });
+    const weekButton = buttonRow.createEl("button", { text: copy.sidebarWeekButton });
     weekButton.addEventListener("click", () => {
       this.setDateRange(formatDateInputValue(addDays(new Date(), -6)), formatDateInputValue(new Date()));
       void this.refreshTasks();
     });
-    const monthButton = buttonRow.createEl("button", { text: "30 days" });
+    const monthButton = buttonRow.createEl("button", { text: copy.sidebarMonthButton });
     monthButton.addEventListener("click", () => {
       this.setDateRange(formatDateInputValue(addDays(new Date(), -29)), formatDateInputValue(new Date()));
       void this.refreshTasks();
     });
-    const clearButton = buttonRow.createEl("button", { text: "Reset" });
+    const clearButton = buttonRow.createEl("button", { text: copy.sidebarResetButton });
     clearButton.addEventListener("click", () => {
       this.setDateRange("", "");
       this.initializeFileFilter();
@@ -298,14 +299,15 @@ export class TaskSidebarView extends ItemView {
       return;
     }
 
+    const copy = this.copy;
     const visibleTasks = this.getVisibleTasks(tasks, filters);
     this.taskListEl.empty();
-    this.statusEl.setText(`${visibleTasks.length} task(s)${this.describeFilters(filters)}${loading ? " · loading…" : ""}`);
+    this.statusEl.setText(`${copy.sidebarStatusTasks(visibleTasks.length)}${this.describeFilters(filters)}${loading ? copy.sidebarStatusLoadingSuffix : ""}`);
 
     if (visibleTasks.length === 0) {
       this.taskListEl.createDiv({
         cls: "task-manager-sidebar-empty",
-        text: loading ? "Loading tasks…" : "No tasks found.",
+        text: loading ? copy.sidebarLoadingTasks : copy.sidebarNoTasksFound,
       });
       return;
     }
@@ -328,6 +330,7 @@ export class TaskSidebarView extends ItemView {
     container: HTMLElement,
     depth: number,
   ): void {
+    const copy = this.copy;
     const childTasks = task.childLineNumbers
       .map((lineNumber) => taskById.get(getTaskIdForLine(task.file.path, lineNumber)))
       .filter((child): child is SidebarTask => Boolean(child));
@@ -361,7 +364,7 @@ export class TaskSidebarView extends ItemView {
       text: stripMetadataTokens(task.text),
     });
     if (!title.textContent?.trim()) {
-      title.setText("(empty task)");
+      title.setText(copy.sidebarEmptyTask);
     }
 
     const meta = content.createDiv({ cls: "task-manager-sidebar-task-meta" });
@@ -373,7 +376,7 @@ export class TaskSidebarView extends ItemView {
       meta.createSpan({ text: ` · ${task.priority}` });
     }
     if (task.archived) {
-      meta.createSpan({ text: " · archived" });
+      meta.createSpan({ text: ` · ${copy.sidebarArchivedBadge}` });
     }
 
     item.addEventListener("click", () => void this.openTask(task));
@@ -480,27 +483,28 @@ export class TaskSidebarView extends ItemView {
   }
 
   private describeFilters(filters: SidebarFilters): string {
+    const copy = this.copy;
     const descriptions: string[] = [];
     if (filters.fileScope === "vault") {
-      descriptions.push(" in whole vault");
+      descriptions.push(copy.sidebarStatusWholeVault);
     } else if (filters.fileScope === "current") {
-      descriptions.push(" in current file");
+      descriptions.push(copy.sidebarStatusCurrentFile);
     } else if (filters.filePath) {
-      descriptions.push(` in ${filters.filePath}`);
+      descriptions.push(copy.sidebarStatusInPath(filters.filePath));
     }
 
     if (filters.archive === "archived") {
-      descriptions.push(" archived");
+      descriptions.push(copy.sidebarStatusArchived);
     } else if (filters.archive === "active") {
-      descriptions.push(" not archived");
+      descriptions.push(copy.sidebarStatusNotArchived);
     }
 
     if (filters.startDate || filters.endDate) {
-      descriptions.push(` from ${filters.startDate || "…"} to ${filters.endDate || "…"}`);
+      descriptions.push(copy.sidebarStatusDateRange(filters.startDate, filters.endDate));
     }
 
     if (filters.priority !== "all") {
-      descriptions.push(` with ${filters.priority} priority`);
+      descriptions.push(copy.sidebarStatusPriority(this.getPriorityLabel(filters.priority)));
     }
 
     return descriptions.join("");
@@ -512,7 +516,7 @@ export class TaskSidebarView extends ItemView {
     }
 
     this.folderSelectEl.empty();
-    this.folderSelectEl.createEl("option", { value: "", text: "Select folder…" });
+    this.folderSelectEl.createEl("option", { value: "", text: this.copy.sidebarFolderSelectPlaceholder });
     for (const folderPath of getMarkdownFolderOptions(this.app.vault.getMarkdownFiles())) {
       this.folderSelectEl.createEl("option", { value: folderPath, text: folderPath || "/" });
     }
@@ -550,7 +554,7 @@ export class TaskSidebarView extends ItemView {
   }
 
   private setLoading(isLoading: boolean): void {
-    this.loadingEl?.setText(isLoading ? "Loading…" : "");
+    this.loadingEl?.setText(isLoading ? this.copy.sidebarLoading : "");
     this.containerEl.toggleClass("is-loading", isLoading);
   }
 
@@ -651,13 +655,14 @@ export class TaskSidebarView extends ItemView {
   }
 
   private openTaskMenu(task: SidebarTask, event: MouseEvent): void {
+    const copy = this.copy;
     const menu = new Menu();
     const priorities: TaskPriority[] = ["urgent", "high", "medium", "low", "none"];
 
     for (const priority of priorities) {
       menu.addItem((item) =>
         item
-          .setTitle(`Set priority: ${priority}`)
+          .setTitle(copy.sidebarMenuSetPriority(this.getPriorityLabel(priority)))
           .setIcon(priority === "none" ? "x" : "flag")
           .onClick(() => void this.updateTaskLine(task, (line) => setTaskPriority(line, priority))),
       );
@@ -666,10 +671,10 @@ export class TaskSidebarView extends ItemView {
     menu.addSeparator();
     menu.addItem((item) =>
       item
-        .setTitle("Add comment")
+        .setTitle(copy.sidebarMenuAddComment)
         .setIcon("message-square-plus")
         .onClick(() => {
-          new TaskCommentModal(this.app, async (comment) => {
+          new TaskCommentModal(this.app, copy, async (comment) => {
             await this.updateTaskLine(task, (line) => appendTaskComment(line, comment));
           }).open();
         }),
@@ -686,7 +691,7 @@ export class TaskSidebarView extends ItemView {
       const lines = content.split("\n");
       const currentLine = lines[task.lineNumber];
       if (currentLine === undefined || !parseTaskLine(currentLine)) {
-        new Notice("Task Manager could not find the selected task line.");
+        new Notice(this.copy.sidebarTaskMissingNotice);
         return content;
       }
 
@@ -699,6 +704,27 @@ export class TaskSidebarView extends ItemView {
   private getUiLanguageTag(): string {
     return resolveLocale(this.plugin.settings.languageMode) === "zh" ? "zh-CN" : "en";
   }
+
+  private getPriorityLabel(priority: TaskPriority | PriorityFilter): string {
+    switch (priority) {
+      case "urgent":
+        return this.copy.sidebarPriorityUrgent;
+      case "high":
+        return this.copy.sidebarPriorityHigh;
+      case "medium":
+        return this.copy.sidebarPriorityMedium;
+      case "low":
+        return this.copy.sidebarPriorityLow;
+      case "none":
+        return this.copy.sidebarPriorityNone;
+      default:
+        return this.copy.sidebarPriorityAll;
+    }
+  }
+
+  private get copy() {
+    return getSettingsCopy(this.plugin.settings);
+  }
 }
 
 class TaskCommentModal extends Modal {
@@ -706,35 +732,36 @@ class TaskCommentModal extends Modal {
 
   constructor(
     app: App,
+    private readonly copy: ReturnType<typeof getSettingsCopy>,
     private readonly onSubmit: (comment: string) => Promise<void>,
   ) {
     super(app);
   }
 
   onOpen(): void {
-    this.setTitle("Add task comment");
+    this.setTitle(this.copy.sidebarCommentModalTitle);
     this.contentEl.empty();
     new Setting(this.contentEl)
-      .setName("Comment")
+      .setName(this.copy.sidebarCommentFieldName)
       .addTextArea((text) => {
         text.inputEl.rows = 4;
-        text.setPlaceholder("Add a short comment").onChange((value) => {
+        text.setPlaceholder(this.copy.sidebarCommentFieldPlaceholder).onChange((value) => {
           this.comment = value;
         });
       });
 
     new Setting(this.contentEl)
       .addButton((button) =>
-        button.setButtonText("Cancel").onClick(() => this.close()),
+        button.setButtonText(this.copy.sidebarCommentCancelButton).onClick(() => this.close()),
       )
       .addButton((button) =>
         button
-          .setButtonText("Add comment")
+          .setButtonText(this.copy.sidebarCommentSubmitButton)
           .setCta()
           .onClick(() => {
             const comment = this.comment.trim();
             if (!comment) {
-              new Notice("Comment cannot be empty.");
+              new Notice(this.copy.sidebarCommentEmptyNotice);
               return;
             }
 

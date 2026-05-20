@@ -53,6 +53,53 @@ interface SettingsCopy {
   archiveLocationsLabel: string;
   archiveSingleTaskSuccessWithPath: (path: string) => string;
   archivePageSuccessWithPaths: (count: number, paths: string[]) => string;
+  sidebarTitle: string;
+  sidebarFiltersSummary: string;
+  sidebarFilePathLabel: string;
+  sidebarFilePathPlaceholder: string;
+  sidebarCurrentFileButton: string;
+  sidebarWholeVaultButton: string;
+  sidebarArchiveButton: string;
+  sidebarDateRangeLabel: string;
+  sidebarPriorityLabel: string;
+  sidebarArchiveLabel: string;
+  sidebarPriorityAll: string;
+  sidebarPriorityUrgent: string;
+  sidebarPriorityHigh: string;
+  sidebarPriorityMedium: string;
+  sidebarPriorityLow: string;
+  sidebarPriorityNone: string;
+  sidebarArchiveAll: string;
+  sidebarArchiveActive: string;
+  sidebarArchiveArchived: string;
+  sidebarTodayButton: string;
+  sidebarWeekButton: string;
+  sidebarMonthButton: string;
+  sidebarResetButton: string;
+  sidebarLoading: string;
+  sidebarLoadingTasks: string;
+  sidebarNoTasksFound: string;
+  sidebarEmptyTask: string;
+  sidebarArchivedBadge: string;
+  sidebarFolderSelectPlaceholder: string;
+  sidebarStatusTasks: (count: number) => string;
+  sidebarStatusLoadingSuffix: string;
+  sidebarStatusWholeVault: string;
+  sidebarStatusCurrentFile: string;
+  sidebarStatusInPath: (path: string) => string;
+  sidebarStatusArchived: string;
+  sidebarStatusNotArchived: string;
+  sidebarStatusDateRange: (startDate: string, endDate: string) => string;
+  sidebarStatusPriority: (priority: string) => string;
+  sidebarMenuSetPriority: (priority: string) => string;
+  sidebarMenuAddComment: string;
+  sidebarTaskMissingNotice: string;
+  sidebarCommentModalTitle: string;
+  sidebarCommentFieldName: string;
+  sidebarCommentFieldPlaceholder: string;
+  sidebarCommentCancelButton: string;
+  sidebarCommentSubmitButton: string;
+  sidebarCommentEmptyNotice: string;
 }
 
 const COPY: Record<TaskManagerLocale, SettingsCopy> = {
@@ -104,6 +151,53 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveLocationsLabel: "归档位置",
     archiveSingleTaskSuccessWithPath: (path) => `已归档当前任务。归档位置：${path}`,
     archivePageSuccessWithPaths: (count, paths) => `已归档 ${count} 个任务。归档位置：${paths.join("；")}`,
+    sidebarTitle: "任务",
+    sidebarFiltersSummary: "筛选器",
+    sidebarFilePathLabel: "文件路径",
+    sidebarFilePathPlaceholder: "当前文件、文件夹，或留空表示整个库",
+    sidebarCurrentFileButton: "当前文件",
+    sidebarWholeVaultButton: "整个仓库",
+    sidebarArchiveButton: "归档",
+    sidebarDateRangeLabel: "日期范围",
+    sidebarPriorityLabel: "优先级",
+    sidebarArchiveLabel: "归档状态",
+    sidebarPriorityAll: "全部优先级",
+    sidebarPriorityUrgent: "紧急",
+    sidebarPriorityHigh: "高",
+    sidebarPriorityMedium: "中",
+    sidebarPriorityLow: "低",
+    sidebarPriorityNone: "无优先级",
+    sidebarArchiveAll: "全部任务",
+    sidebarArchiveActive: "未归档",
+    sidebarArchiveArchived: "已归档",
+    sidebarTodayButton: "今天",
+    sidebarWeekButton: "7 天",
+    sidebarMonthButton: "30 天",
+    sidebarResetButton: "重置",
+    sidebarLoading: "加载中…",
+    sidebarLoadingTasks: "正在加载任务…",
+    sidebarNoTasksFound: "没有找到任务。",
+    sidebarEmptyTask: "（空任务）",
+    sidebarArchivedBadge: "已归档",
+    sidebarFolderSelectPlaceholder: "选择文件夹…",
+    sidebarStatusTasks: (count) => `${count} 个任务`,
+    sidebarStatusLoadingSuffix: " · 加载中…",
+    sidebarStatusWholeVault: " 在整个仓库中",
+    sidebarStatusCurrentFile: " 在当前文件中",
+    sidebarStatusInPath: (path) => ` 在 ${path} 中`,
+    sidebarStatusArchived: " 已归档",
+    sidebarStatusNotArchived: " 未归档",
+    sidebarStatusDateRange: (startDate, endDate) => ` 从 ${startDate || "…"} 到 ${endDate || "…"}`,
+    sidebarStatusPriority: (priority) => ` 优先级：${priority}`,
+    sidebarMenuSetPriority: (priority) => `设置优先级：${priority}`,
+    sidebarMenuAddComment: "添加评论",
+    sidebarTaskMissingNotice: "Task Manager 找不到所选任务所在的行。",
+    sidebarCommentModalTitle: "添加任务评论",
+    sidebarCommentFieldName: "评论",
+    sidebarCommentFieldPlaceholder: "添加一条简短评论",
+    sidebarCommentCancelButton: "取消",
+    sidebarCommentSubmitButton: "添加评论",
+    sidebarCommentEmptyNotice: "评论不能为空。",
   },
   en: {
     languageName: "Language",
@@ -153,6 +247,53 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveLocationsLabel: "Archive locations",
     archiveSingleTaskSuccessWithPath: (path) => `Archived the current task to ${path}`,
     archivePageSuccessWithPaths: (count, paths) => `Archived ${count} tasks to ${paths.join("; ")}`,
+    sidebarTitle: "Tasks",
+    sidebarFiltersSummary: "Filters",
+    sidebarFilePathLabel: "File path",
+    sidebarFilePathPlaceholder: "Current file, folder, or blank for vault",
+    sidebarCurrentFileButton: "Current file",
+    sidebarWholeVaultButton: "Whole vault",
+    sidebarArchiveButton: "Archive",
+    sidebarDateRangeLabel: "Date range",
+    sidebarPriorityLabel: "Priority",
+    sidebarArchiveLabel: "Archive",
+    sidebarPriorityAll: "All priorities",
+    sidebarPriorityUrgent: "Urgent",
+    sidebarPriorityHigh: "High",
+    sidebarPriorityMedium: "Medium",
+    sidebarPriorityLow: "Low",
+    sidebarPriorityNone: "No priority",
+    sidebarArchiveAll: "All tasks",
+    sidebarArchiveActive: "Not archived",
+    sidebarArchiveArchived: "Archived",
+    sidebarTodayButton: "Today",
+    sidebarWeekButton: "7 days",
+    sidebarMonthButton: "30 days",
+    sidebarResetButton: "Reset",
+    sidebarLoading: "Loading…",
+    sidebarLoadingTasks: "Loading tasks…",
+    sidebarNoTasksFound: "No tasks found.",
+    sidebarEmptyTask: "(empty task)",
+    sidebarArchivedBadge: "archived",
+    sidebarFolderSelectPlaceholder: "Select folder…",
+    sidebarStatusTasks: (count) => `${count} task(s)`,
+    sidebarStatusLoadingSuffix: " · loading…",
+    sidebarStatusWholeVault: " in whole vault",
+    sidebarStatusCurrentFile: " in current file",
+    sidebarStatusInPath: (path) => ` in ${path}`,
+    sidebarStatusArchived: " archived",
+    sidebarStatusNotArchived: " not archived",
+    sidebarStatusDateRange: (startDate, endDate) => ` from ${startDate || "…"} to ${endDate || "…"}`,
+    sidebarStatusPriority: (priority) => ` with ${priority} priority`,
+    sidebarMenuSetPriority: (priority) => `Set priority: ${priority}`,
+    sidebarMenuAddComment: "Add comment",
+    sidebarTaskMissingNotice: "Task Manager could not find the selected task line.",
+    sidebarCommentModalTitle: "Add task comment",
+    sidebarCommentFieldName: "Comment",
+    sidebarCommentFieldPlaceholder: "Add a short comment",
+    sidebarCommentCancelButton: "Cancel",
+    sidebarCommentSubmitButton: "Add comment",
+    sidebarCommentEmptyNotice: "Comment cannot be empty.",
   },
 };
 
