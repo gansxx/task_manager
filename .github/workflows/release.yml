@@ -76,11 +76,26 @@ jobs:
           path: ${{ steps.manual_package.outputs.package_dir }}
 
       - name: Create GitHub release and upload assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_version.outputs.release_tag }}
-          files: |
-            manifest.json
-            main.js
-            styles.css
-            ${{ steps.manual_package.outputs.package_zip }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG="${{ steps.release_version.outputs.release_tag }}"
+          NOTES="Automated release for ${TAG}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" \
+              manifest.json \
+              main.js \
+              styles.css \
+              "${{ steps.manual_package.outputs.package_zip }}" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              manifest.json \
+              main.js \
+              styles.css \
+              "${{ steps.manual_package.outputs.package_zip }}" \
+              --title "$TAG" \
+              --notes "$NOTES"
+          fi

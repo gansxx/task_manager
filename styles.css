@@ -159,7 +159,10 @@
 
 .task-manager-sidebar-task-title {
   color: var(--text-normal);
+  font-family: var(--font-text);
+  font-size: var(--font-ui-medium);
   font-weight: 500;
+  line-height: 1.45;
 }
 
 .markdown-preview-view.task-manager-hide-metadata-tokens .task-manager-date-token,
@@ -238,12 +241,6 @@
 
 .task-manager-sidebar-task-content {
   min-width: 0;
-}
-
-.task-manager-sidebar-task-title {
-  font-family: var(--font-text);
-  font-size: var(--font-ui-medium);
-  line-height: 1.45;
 }
 
 .task-manager-sidebar-children {
