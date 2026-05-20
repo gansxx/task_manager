@@ -10,6 +10,7 @@ import {
   TFile,
   WorkspaceLeaf,
 } from "obsidian";
+import { resolveLocale } from "./i18n";
 import type TaskManagerPlugin from "./main";
 import {
   appendTaskComment,
@@ -108,9 +109,11 @@ export class TaskSidebarView extends ItemView {
   }
 
   private renderShell(): void {
+    const uiLanguageTag = this.getUiLanguageTag();
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("task-manager-sidebar");
+    container.setAttr("lang", uiLanguageTag);
 
     const header = container.createDiv({ cls: "task-manager-sidebar-header" });
     header.createEl("h3", { text: "Tasks" });
@@ -180,11 +183,13 @@ export class TaskSidebarView extends ItemView {
       type: "date",
       cls: "task-manager-sidebar-date-filter",
     });
+    this.startDateInputEl.lang = uiLanguageTag;
     dateRangeRow.createSpan({ cls: "task-manager-sidebar-date-separator", text: "~" });
     this.endDateInputEl = dateRangeRow.createEl("input", {
       type: "date",
       cls: "task-manager-sidebar-date-filter",
     });
+    this.endDateInputEl.lang = uiLanguageTag;
     this.startDateInputEl.addEventListener("change", () => void this.refreshTasks());
     this.endDateInputEl.addEventListener("change", () => void this.refreshTasks());
 
@@ -689,6 +694,10 @@ export class TaskSidebarView extends ItemView {
       return lines.join("\n");
     });
     await this.refreshTasks();
+  }
+
+  private getUiLanguageTag(): string {
+    return resolveLocale(this.plugin.settings.languageMode) === "zh" ? "zh-CN" : "en";
   }
 }
 

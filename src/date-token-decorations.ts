@@ -30,9 +30,9 @@ class TaskDateTokenPluginValue {
 export function registerDateTokenDecorations(plugin: Plugin): void {
   plugin.registerMarkdownPostProcessor((el) => {
     const textNodes: Text[] = [];
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    const walker = activeDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
-        if (!(node instanceof Text)) {
+        if (!node.instanceOf(Text)) {
           return NodeFilter.FILTER_REJECT;
         }
 
@@ -55,7 +55,7 @@ export function registerDateTokenDecorations(plugin: Plugin): void {
     });
 
     let currentNode = walker.nextNode();
-    while (currentNode instanceof Text) {
+    while (currentNode?.instanceOf(Text)) {
       textNodes.push(currentNode);
       currentNode = walker.nextNode();
     }
@@ -127,7 +127,7 @@ function replaceTextNodeTokens(textNode: Text): void {
     return;
   }
 
-  const fragment = document.createDocumentFragment();
+  const fragment = activeDocument.createDocumentFragment();
   let index = 0;
 
   for (const match of matches) {
@@ -136,7 +136,7 @@ function replaceTextNodeTokens(textNode: Text): void {
       fragment.append(text.slice(index, start));
     }
 
-    const tokenEl = document.createElement("span");
+    const tokenEl = activeDocument.createElement("span");
     tokenEl.className = `${TOKEN_CLASS} ${getTokenVariantClass(match)}`;
     tokenEl.textContent = match[0];
     fragment.append(tokenEl);

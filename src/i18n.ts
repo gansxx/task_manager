@@ -1,4 +1,3 @@
-import { getLanguage } from "obsidian";
 import type {
   TaskManagerLanguageMode,
   TaskManagerSettings,
@@ -165,7 +164,13 @@ export function resolveLocale(
   }
 
   try {
-    return getLanguage().toLowerCase().startsWith("zh") ? "zh" : "en";
+    const language =
+      window.localStorage.getItem("language")
+      ?? activeDocument.documentElement.lang
+      ?? window.navigator.language
+      ?? "en";
+
+    return language.toLowerCase().startsWith("zh") ? "zh" : "en";
   } catch {
     return "en";
   }

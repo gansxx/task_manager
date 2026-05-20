@@ -32,7 +32,7 @@ export default class TaskManagerPlugin extends Plugin {
     this.monitorService.registerDefaultHandlers();
     this.monitorService.start();
     this.updateMetadataTokenVisibility();
-    this.register(() => document.body.removeClass("task-manager-hide-metadata-tokens"));
+    this.register(() => activeDocument.body.removeClass("task-manager-hide-metadata-tokens"));
     registerDateTokenDecorations(this);
     this.registerView(
       TASK_SIDEBAR_VIEW_TYPE,
@@ -50,13 +50,12 @@ export default class TaskManagerPlugin extends Plugin {
   }
 
   onunload(): void {
-    this.app.workspace.detachLeavesOfType(TASK_SIDEBAR_VIEW_TYPE);
     this.monitorService?.stop();
   }
 
   async loadSettings(): Promise<void> {
-    const loaded = await this.loadData();
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
+    const loaded = (await this.loadData()) as Partial<TaskManagerSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded ?? {});
   }
 
   async saveSettings(): Promise<void> {
@@ -65,7 +64,7 @@ export default class TaskManagerPlugin extends Plugin {
   }
 
   updateMetadataTokenVisibility(): void {
-    document.body.toggleClass(
+    activeDocument.body.toggleClass(
       "task-manager-hide-metadata-tokens",
       this.settings.hideMetadataTokens,
     );
@@ -179,14 +178,14 @@ export default class TaskManagerPlugin extends Plugin {
   private async activateTaskSidebar(): Promise<void> {
     const existingLeaf = this.app.workspace.getLeavesOfType(TASK_SIDEBAR_VIEW_TYPE)[0];
     if (existingLeaf) {
-      this.app.workspace.revealLeaf(existingLeaf);
+      this.app.workspace.setActiveLeaf(existingLeaf, { focus: true });
       return;
     }
 
     const leaf = this.app.workspace.getRightLeaf(false);
     await leaf?.setViewState({ type: TASK_SIDEBAR_VIEW_TYPE, active: true });
     if (leaf) {
-      this.app.workspace.revealLeaf(leaf);
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
     }
   }
 
