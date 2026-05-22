@@ -127,12 +127,37 @@ export default class TaskManagerPlugin extends Plugin {
         }
         menu.addItem((item) =>
           item
-            .setTitle("Priority")
+            .setTitle(this.copy.sidebarMenuPriorityParent)
             .setIcon("flag")
             .onClick((evt) => this.openPrioritySubmenu(evt, (priority) => {
               this.setCurrentTaskPriority(editor, priority);
             })),
         );
+        window.setTimeout(() => {
+          const menus = Array.from(activeDocument.querySelectorAll(".menu"));
+          const latestMenu = menus.at(-1);
+          if (!(latestMenu instanceof HTMLElement)) {
+            return;
+          }
+
+          const target = Array.from(latestMenu.querySelectorAll(".menu-item")).find((item) =>
+            item.textContent?.trim().includes(this.copy.sidebarMenuPriorityParent),
+          );
+          if (!(target instanceof HTMLElement)) {
+            return;
+          }
+
+          target.addEventListener("mouseenter", () => {
+            this.openPrioritySubmenu(new MouseEvent("contextmenu", {
+              bubbles: true,
+              clientX: target.getBoundingClientRect().right - 4,
+              clientY: target.getBoundingClientRect().top + 4,
+              view: window,
+            }), (priority) => {
+              this.setCurrentTaskPriority(editor, priority);
+            });
+          }, { once: true });
+        }, 0);
         if (activeFile) {
           menu.addItem((item) =>
             item

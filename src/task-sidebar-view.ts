@@ -27,6 +27,7 @@ type PriorityFilter = TaskPriority | "all";
 type FileScopeFilter = "current" | "path" | "vault";
 type ArchiveFilter = "all" | "active" | "archived";
 type CompletionFilter = "all" | "open" | "done";
+type FilePathOptionType = "folder" | "file";
 
 interface SidebarTask {
   file: TFile;
@@ -42,7 +43,12 @@ interface SidebarTask {
   indentLevel: number;
   parentLineNumber: number | null;
   childLineNumbers: number[];
-  comments: string[];
+  comments: SidebarComment[];
+}
+
+interface SidebarComment {
+  text: string;
+  timestamp: string | null;
 }
 
 interface CachedSidebarTask extends Omit<SidebarTask, "file"> {
@@ -80,7 +86,8 @@ export class TaskSidebarView extends ItemView {
   private fileScope: FileScopeFilter = "current";
   private refreshId = 0;
   private readonly collapsedTaskIds = new Set<string>();
-  private folderOptions: string[] = [];
+  private filePathOptions: Array<{ value: string; type: FilePathOptionType }> = [];
+  private selectedFilePath = "";
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -153,9 +160,24 @@ export class TaskSidebarView extends ItemView {
       placeholder: copy.sidebarFilePathPlaceholder,
     });
     this.filePathInputEl.addEventListener("input", () => {
-      this.fileScope = this.filePathInputEl?.value.trim() ? "path" : "vault";
       this.renderFilePathSuggestions();
-      void this.refreshTasks();
+    });
+    this.filePathInputEl.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+
+      const candidate = this.filePathInputEl?.value.trim() ?? "";
+      if (!candidate) {
+        return;
+      }
+
+      const match = this.filePathOptions.find((option) => option.value === candidate);
+      if (!match) {
+        return;
+      }
+
+      this.applyFilePathSelection(match.value);
     });
     this.filePathInputEl.addEventListener("focus", () => {
       this.renderFilePathSuggestions();
@@ -168,6 +190,7 @@ export class TaskSidebarView extends ItemView {
     const currentFileButton = fileButtonRow.createEl("button", { text: copy.sidebarCurrentFileButton });
     currentFileButton.addEventListener("click", () => {
       this.fileScope = "current";
+      this.selectedFilePath = "";
       this.setFilePathToActiveFile();
       this.renderFilePathSuggestions();
       void this.refreshTasks();
@@ -175,6 +198,7 @@ export class TaskSidebarView extends ItemView {
     const vaultButton = fileButtonRow.createEl("button", { text: copy.sidebarWholeVaultButton });
     vaultButton.addEventListener("click", () => {
       this.fileScope = "vault";
+      this.selectedFilePath = "";
       if (this.filePathInputEl) {
         this.filePathInputEl.value = "";
       }
@@ -183,15 +207,10 @@ export class TaskSidebarView extends ItemView {
     });
     const archiveRootButton = fileButtonRow.createEl("button", { text: copy.sidebarArchiveButton });
     archiveRootButton.addEventListener("click", () => {
-      this.fileScope = "path";
-      if (this.filePathInputEl) {
-        this.filePathInputEl.value = this.plugin.settings.archiveRootFolder;
-      }
+      this.applyFilePathSelection(this.plugin.settings.archiveRootFolder);
       if (this.archiveSelectEl) {
         this.archiveSelectEl.value = "archived";
       }
-      this.renderFilePathSuggestions();
-      void this.refreshTasks();
     });
     this.initializeFileFilter();
 
@@ -349,9 +368,12 @@ export class TaskSidebarView extends ItemView {
         !taskById.has(getTaskIdForLine(task.file.path, task.parentLineNumber)),
     );
 
-    for (const task of roots) {
+    roots.forEach((task, index) => {
+      if (index > 0) {
+        this.taskListEl?.createDiv({ cls: "task-manager-sidebar-root-divider" });
+      }
       this.renderTaskNode(task, taskById, this.taskListEl, 0);
-    }
+    });
   }
 
   private renderTaskNode(
@@ -435,10 +457,16 @@ export class TaskSidebarView extends ItemView {
       const childrenEl = container.createDiv({ cls: "task-manager-sidebar-children" });
       childrenEl.style.setProperty("--task-manager-task-depth", String(depth + 1));
       for (const comment of task.comments) {
-        childrenEl.createDiv({
+        const commentEl = childrenEl.createDiv({
           cls: "task-manager-sidebar-comment",
-          text: stripMetadataTokens(comment),
+          text: stripMetadataTokens(comment.text),
         });
+        if (comment.timestamp) {
+          commentEl.createSpan({
+            cls: "task-manager-sidebar-comment-timestamp",
+            text: ` · ${comment.timestamp}`,
+          });
+        }
       }
       for (const child of childTasks) {
         this.renderTaskNode(child, taskById, childrenEl, depth + 1);
@@ -473,7 +501,7 @@ export class TaskSidebarView extends ItemView {
       priority: (this.prioritySelectEl?.value as PriorityFilter | undefined) ?? "all",
       archive: (this.archiveSelectEl?.value as ArchiveFilter | undefined) ?? "active",
       completion: (this.completionSelectEl?.value as CompletionFilter | undefined) ?? "all",
-      filePath: this.filePathInputEl?.value.trim() ?? "",
+      filePath: this.selectedFilePath,
       fileScope: this.fileScope,
     });
   }
@@ -576,7 +604,7 @@ export class TaskSidebarView extends ItemView {
   }
 
   private updateFolderOptions(): void {
-    this.folderOptions = getMarkdownFolderOptions(this.app.vault.getMarkdownFiles());
+    this.filePathOptions = getFilePathOptions(this.app.vault.getMarkdownFiles());
   }
 
   private renderFilePathSuggestions(): void {
@@ -592,8 +620,8 @@ export class TaskSidebarView extends ItemView {
       return;
     }
 
-    const matches = this.folderOptions
-      .filter((path) => path.toLowerCase().includes(query))
+    const matches = this.filePathOptions
+      .filter((option) => option.value.toLowerCase().includes(query))
       .slice(0, 8);
 
     if (matches.length === 0) {
@@ -608,16 +636,15 @@ export class TaskSidebarView extends ItemView {
     for (const match of matches) {
       const button = suggestionsEl.createEl("button", {
         cls: "task-manager-sidebar-file-suggestion",
-        text: match,
+        text: match.value,
       });
       button.type = "button";
+      button.createSpan({
+        cls: "task-manager-sidebar-file-suggestion-type",
+        text: match.type === "folder" ? "folder" : "file",
+      });
       button.addEventListener("click", () => {
-        if (this.filePathInputEl) {
-          this.filePathInputEl.value = match;
-        }
-        this.fileScope = "path";
-        suggestionsEl.hide();
-        void this.refreshTasks();
+        this.applyFilePathSelection(match.value);
       });
     }
 
@@ -627,14 +654,12 @@ export class TaskSidebarView extends ItemView {
   private initializeFileFilter(): void {
     const watchedFolder = this.plugin.settings.watchedFolder.trim();
     if (watchedFolder) {
-      this.fileScope = "path";
-      if (this.filePathInputEl) {
-        this.filePathInputEl.value = watchedFolder;
-      }
+      this.applyFilePathSelection(watchedFolder, false);
       return;
     }
 
     this.fileScope = "current";
+    this.selectedFilePath = "";
     this.setFilePathToActiveFile();
   }
 
@@ -727,6 +752,9 @@ export class TaskSidebarView extends ItemView {
     );
 
     menu.showAtMouseEvent(event);
+    this.attachPriorityHoverMenu(copy.sidebarMenuPriorityParent, event, (evt) => {
+      this.openPrioritySubmenu(task, evt);
+    });
   }
 
   private openPrioritySubmenu(
@@ -799,6 +827,49 @@ export class TaskSidebarView extends ItemView {
 
   private get copy() {
     return getSettingsCopy(this.plugin.settings);
+  }
+
+  private applyFilePathSelection(value: string, refresh = true): void {
+    this.fileScope = "path";
+    this.selectedFilePath = value;
+    if (this.filePathInputEl) {
+      this.filePathInputEl.value = value;
+    }
+    this.filePathSuggestionsEl?.hide();
+    if (refresh) {
+      void this.refreshTasks();
+    }
+  }
+
+  private attachPriorityHoverMenu(
+    title: string,
+    event: MouseEvent,
+    openMenu: (evt: MouseEvent) => void,
+  ): void {
+    window.setTimeout(() => {
+      const menus = Array.from(activeDocument.querySelectorAll(".menu"));
+      const latestMenu = menus.at(-1);
+      if (!(latestMenu instanceof HTMLElement)) {
+        return;
+      }
+
+      const items = Array.from(latestMenu.querySelectorAll(".menu-item"));
+      const target = items.find((item) =>
+        item.textContent?.trim().includes(title),
+      );
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      target.addEventListener("mouseenter", () => {
+        openMenu(new MouseEvent("contextmenu", {
+          bubbles: true,
+          clientX: target.getBoundingClientRect().right - 4,
+          clientY: target.getBoundingClientRect().top + 4,
+          view: window,
+        }));
+      }, { once: true });
+    }, 0);
   }
 }
 
@@ -901,8 +972,8 @@ function getIndentLevel(indent: string): number {
   return [...indent].reduce((level, character) => level + (character === "\t" ? 1 : 0.25), 0);
 }
 
-function parseCommentLine(line: string): { indentLevel: number; text: string } | null {
-  const match = /^(\s*)-\s+(.*?)\s*@comment(?:\([^)]+\))?\s*$/.exec(line);
+function parseCommentLine(line: string): { indentLevel: number; text: string; timestamp: string | null } | null {
+  const match = /^(\s*)-\s+(.*?)\s*@comment(?:\(([^)]+)\))?\s*$/.exec(line);
   if (!match) {
     return null;
   }
@@ -910,19 +981,28 @@ function parseCommentLine(line: string): { indentLevel: number; text: string } |
   return {
     indentLevel: getIndentLevel(match[1]),
     text: match[2],
+    timestamp: match[3] ?? null,
   };
 }
 
-function getMarkdownFolderOptions(files: TFile[]): string[] {
+function getFilePathOptions(files: TFile[]): Array<{ value: string; type: FilePathOptionType }> {
   const folders = new Set<string>();
+  const paths = new Set<string>();
   for (const file of files) {
+    paths.add(file.path);
     const lastSlashIndex = file.path.lastIndexOf("/");
     if (lastSlashIndex > 0) {
       folders.add(file.path.slice(0, lastSlashIndex));
     }
   }
 
-  return [...folders].sort((a, b) => a.localeCompare(b));
+  const folderOptions = [...folders]
+    .sort((a, b) => a.localeCompare(b))
+    .map((value) => ({ value, type: "folder" as const }));
+  const fileOptions = [...paths]
+    .sort((a, b) => a.localeCompare(b))
+    .map((value) => ({ value, type: "file" as const }));
+  return [...folderOptions, ...fileOptions];
 }
 
 function matchesFilePath(file: TFile, path: string): boolean {
@@ -977,7 +1057,10 @@ async function collectSidebarTasks(
         const comment = parseCommentLine(line);
         if (comment) {
           const parent = [...stack].reverse().find((task) => task.indentLevel < comment.indentLevel);
-          parent?.comments.push(comment.text);
+          parent?.comments.push({
+            text: comment.text,
+            timestamp: comment.timestamp,
+          });
         }
         return;
       }

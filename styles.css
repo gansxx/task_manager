@@ -138,6 +138,11 @@
   padding-right: var(--size-2-1);
 }
 
+.task-manager-sidebar-root-divider {
+  border-top: 1px dashed var(--background-modifier-border);
+  margin: var(--size-2-2) 0;
+}
+
 .task-manager-sidebar-task {
   background: color-mix(in srgb, var(--background-secondary) 82%, white 18%);
   border: 1px solid var(--background-modifier-border);
@@ -270,6 +275,11 @@
   margin: var(--size-2-1) 0;
 }
 
+.task-manager-sidebar-comment-timestamp {
+  color: var(--text-faint);
+  font-style: normal;
+}
+
 .task-manager-sidebar-file-path-container {
   position: relative;
 }
@@ -286,11 +296,14 @@
 }
 
 .task-manager-sidebar-file-suggestion {
+  align-items: center;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--background-modifier-border);
   box-shadow: none;
   cursor: pointer;
+  display: flex;
+  justify-content: space-between;
   padding: var(--size-2-2) var(--size-2-3);
   text-align: left;
   width: 100%;
@@ -307,6 +320,13 @@
 .task-manager-sidebar-file-suggestion.is-empty {
   color: var(--text-muted);
   cursor: default;
+}
+
+.task-manager-sidebar-file-suggestion-type {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  margin-left: var(--size-2-2);
+  text-transform: uppercase;
 }
 
 .task-manager-sidebar-task.is-completed .task-manager-sidebar-task-title {
