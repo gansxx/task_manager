@@ -10,6 +10,7 @@ import {
   appendTaskCommentWithTimestamp,
   createStartLine,
   getCheckboxCursorOffset,
+  getTaskArchiveBlock,
   isEmptyUncheckedTask,
   isTaskArchivable,
   parseTaskLine,
@@ -137,13 +138,19 @@ export class TaskMonitorService {
       return true;
     }
 
+    lines[lineNumber] = updatedLine;
+    const archiveBlock = getTaskArchiveBlock(lines, lineNumber);
+    if (!archiveBlock) {
+      return false;
+    }
+
     await this.archiveService.archiveCompletedTask(
       file,
-      updatedLine.trim(),
+      archiveBlock.text,
       getCurrentTimestamp(this.getSettings().timestampPrecision),
     );
 
-    lines.splice(lineNumber, 1);
+    lines.splice(lineNumber, archiveBlock.lineCount);
     await this.app.vault.modify(file, lines.join("\n"));
     this.snapshots.set(file.path, lines);
     return true;
@@ -203,17 +210,25 @@ export class TaskMonitorService {
         return;
       }
 
-      await this.archiveService.archiveCompletedTask(
-        event.file,
-        archivedLine.trim(),
-        event.date,
-      );
-
       this.runWithSuppressedFile(event.file.path, () => {
         if (archivedLine !== event.currentLine) {
           event.editor.setLine(event.lineNumber, archivedLine);
         }
-        this.removeLine(event.editor, event.lineNumber, archivedLine);
+      });
+
+      const archiveBlock = getTaskArchiveBlock(this.getEditorLines(event.editor), event.lineNumber);
+      if (!archiveBlock) {
+        return;
+      }
+
+      await this.archiveService.archiveCompletedTask(
+        event.file,
+        archiveBlock.text,
+        event.date,
+      );
+
+      this.runWithSuppressedFile(event.file.path, () => {
+        this.removeLines(event.editor, event.lineNumber, archiveBlock.lineCount);
       });
 
       this.updateSnapshotFromEditor(event.file, event.editor);
@@ -443,6 +458,13 @@ export class TaskMonitorService {
     );
   }
 
+  private removeLines(editor: Editor, lineNumber: number, lineCount: number): void {
+    for (let offset = lineCount - 1; offset >= 0; offset -= 1) {
+      const currentLineNumber = lineNumber + offset;
+      this.removeLine(editor, currentLineNumber, editor.getLine(currentLineNumber));
+    }
+  }
+
   private async archiveTasksFromEditor(
     file: TFile,
     editor: Editor,
@@ -482,14 +504,19 @@ export class TaskMonitorService {
       return null;
     }
 
+    const archiveBlock = getTaskArchiveBlock(this.getEditorLines(editor), lineNumber);
+    if (!archiveBlock) {
+      return null;
+    }
+
     const result = await this.archiveService.archiveTaskLine(
       file,
-      lineText.trim(),
+      archiveBlock.text,
       getCurrentDateStamp(),
     );
 
     this.runWithSuppressedFile(file.path, () => {
-      this.removeLine(editor, lineNumber, lineText);
+      this.removeLines(editor, lineNumber, archiveBlock.lineCount);
     });
 
     return result;

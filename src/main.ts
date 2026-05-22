@@ -135,7 +135,7 @@ export default class TaskManagerPlugin extends Plugin {
         );
         window.setTimeout(() => {
           const menus = Array.from(activeDocument.querySelectorAll(".menu"));
-          const latestMenu = menus.at(-1);
+          const latestMenu = menus[menus.length - 1];
           if (!(latestMenu instanceof HTMLElement)) {
             return;
           }

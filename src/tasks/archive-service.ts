@@ -18,15 +18,15 @@ export class TaskArchiveService {
 
   async archiveCompletedTask(
     sourceFile: TFile,
-    archivedTaskLine: string,
+    archivedTaskBlock: string,
     completedDate: string,
   ): Promise<ArchiveWriteResult> {
-    return this.archiveTaskLine(sourceFile, archivedTaskLine, completedDate);
+    return this.archiveTaskLine(sourceFile, archivedTaskBlock, completedDate);
   }
 
   async archiveTaskLine(
     sourceFile: TFile,
-    archivedTaskLine: string,
+    archivedTaskBlock: string,
     archivedDate: string,
   ): Promise<ArchiveWriteResult> {
     const archiveRoot = this.getSettings().archiveRootFolder.trim();
@@ -34,8 +34,8 @@ export class TaskArchiveService {
       return { archivePath: "" };
     }
 
-    const archiveLine = `${archivedTaskLine} @from("${sourceFile.path}") @archived(${archivedDate})`;
-    const referenceDate = getTaskReferenceDate(archivedTaskLine);
+    const archiveEntry = addArchiveMetadata(archivedTaskBlock, sourceFile.path, archivedDate);
+    const referenceDate = getTaskReferenceDate(archivedTaskBlock.split("\n")[0] ?? "");
     if (!referenceDate) {
       const untimedFolder = normalizePath(`${archiveRoot}/${UNTIMED_FOLDER_NAME}`);
       const untimedPath = normalizePath(`${untimedFolder}/${UNTIMED_FILE_NAME}`);
@@ -44,7 +44,7 @@ export class TaskArchiveService {
       await this.appendArchiveLine(
         untimedPath,
         "# Untimed Tasks",
-        archiveLine,
+        archiveEntry,
       );
       return { archivePath: untimedPath };
     }
@@ -62,7 +62,7 @@ export class TaskArchiveService {
     await this.appendArchiveLine(
       archivePath,
       `# ${isoYear}-W${String(isoWeek).padStart(2, "0")}`,
-      archiveLine,
+      archiveEntry,
     );
     return { archivePath };
   }
@@ -99,4 +99,17 @@ export class TaskArchiveService {
       }
     }
   }
+}
+
+function addArchiveMetadata(
+  archivedTaskBlock: string,
+  sourcePath: string,
+  archivedDate: string,
+): string {
+  const lines = archivedTaskBlock.split("\n");
+  const [taskLine = "", ...rest] = lines;
+  return [
+    `${taskLine.trimEnd()} @from("${sourcePath}") @archived(${archivedDate})`,
+    ...rest,
+  ].join("\n");
 }

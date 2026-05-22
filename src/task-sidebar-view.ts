@@ -85,6 +85,7 @@ export class TaskSidebarView extends ItemView {
   private loadingEl?: HTMLElement;
   private fileScope: FileScopeFilter = "current";
   private refreshId = 0;
+  private filePathRefreshTimer: number | null = null;
   private readonly collapsedTaskIds = new Set<string>();
   private filePathOptions: Array<{ value: string; type: FilePathOptionType }> = [];
   private selectedFilePath = "";
@@ -131,6 +132,10 @@ export class TaskSidebarView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    if (this.filePathRefreshTimer !== null) {
+      window.clearTimeout(this.filePathRefreshTimer);
+      this.filePathRefreshTimer = null;
+    }
     this.containerEl.empty();
   }
 
@@ -160,24 +165,33 @@ export class TaskSidebarView extends ItemView {
       placeholder: copy.sidebarFilePathPlaceholder,
     });
     this.filePathInputEl.addEventListener("input", () => {
+      const query = this.filePathInputEl?.value.trim() ?? "";
+      this.fileScope = query ? "path" : "vault";
+      this.selectedFilePath = query;
       this.renderFilePathSuggestions();
+      this.queueRefreshTasks();
     });
     this.filePathInputEl.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        this.filePathSuggestionsEl?.hide();
+        return;
+      }
+
       if (event.key !== "Enter") {
         return;
       }
 
+      event.preventDefault();
       const candidate = this.filePathInputEl?.value.trim() ?? "";
       if (!candidate) {
+        this.fileScope = "vault";
+        this.selectedFilePath = "";
+        void this.refreshTasks();
         return;
       }
 
-      const match = this.filePathOptions.find((option) => option.value === candidate);
-      if (!match) {
-        return;
-      }
-
-      this.applyFilePathSelection(match.value);
+      const match = this.getMatchingFilePathOptions(candidate)[0];
+      this.applyFilePathSelection(match?.value ?? candidate);
     });
     this.filePathInputEl.addEventListener("focus", () => {
       this.renderFilePathSuggestions();
@@ -368,11 +382,12 @@ export class TaskSidebarView extends ItemView {
         !taskById.has(getTaskIdForLine(task.file.path, task.parentLineNumber)),
     );
 
+    const taskListEl = this.taskListEl;
     roots.forEach((task, index) => {
       if (index > 0) {
-        this.taskListEl?.createDiv({ cls: "task-manager-sidebar-root-divider" });
+        taskListEl.createDiv({ cls: "task-manager-sidebar-root-divider" });
       }
-      this.renderTaskNode(task, taskById, this.taskListEl, 0);
+      this.renderTaskNode(task, taskById, taskListEl, 0);
     });
   }
 
@@ -614,15 +629,13 @@ export class TaskSidebarView extends ItemView {
     }
 
     suggestionsEl.empty();
-    const query = this.filePathInputEl?.value.trim().toLowerCase() ?? "";
+    const query = this.filePathInputEl?.value.trim() ?? "";
     if (!query) {
       suggestionsEl.hide();
       return;
     }
 
-    const matches = this.filePathOptions
-      .filter((option) => option.value.toLowerCase().includes(query))
-      .slice(0, 8);
+    const matches = this.getMatchingFilePathOptions(query).slice(0, 8);
 
     if (matches.length === 0) {
       suggestionsEl.createDiv({
@@ -841,6 +854,39 @@ export class TaskSidebarView extends ItemView {
     }
   }
 
+  private queueRefreshTasks(): void {
+    if (this.filePathRefreshTimer !== null) {
+      window.clearTimeout(this.filePathRefreshTimer);
+    }
+
+    this.filePathRefreshTimer = window.setTimeout(() => {
+      this.filePathRefreshTimer = null;
+      void this.refreshTasks();
+    }, 180);
+  }
+
+  private getMatchingFilePathOptions(query: string): Array<{ value: string; type: FilePathOptionType }> {
+    return this.filePathOptions
+      .map((option) => ({
+        option,
+        score: getFilePathMatchScore(option.value, query),
+      }))
+      .filter((entry): entry is { option: { value: string; type: FilePathOptionType }; score: number } =>
+        entry.score !== null)
+      .sort((a, b) => {
+        if (a.score !== b.score) {
+          return a.score - b.score;
+        }
+
+        if (a.option.type !== b.option.type) {
+          return a.option.type === "folder" ? -1 : 1;
+        }
+
+        return a.option.value.localeCompare(b.option.value);
+      })
+      .map((entry) => entry.option);
+  }
+
   private attachPriorityHoverMenu(
     title: string,
     event: MouseEvent,
@@ -848,7 +894,7 @@ export class TaskSidebarView extends ItemView {
   ): void {
     window.setTimeout(() => {
       const menus = Array.from(activeDocument.querySelectorAll(".menu"));
-      const latestMenu = menus.at(-1);
+      const latestMenu = menus[menus.length - 1];
       if (!(latestMenu instanceof HTMLElement)) {
         return;
       }
@@ -1012,10 +1058,46 @@ function matchesFilePath(file: TFile, path: string): boolean {
   }
 
   const normalizedFilePath = normalizePath(file.path);
+  const normalizedQuery = normalizedPath.toLowerCase();
+  const normalizedFilePathLower = normalizedFilePath.toLowerCase();
   return (
     normalizedFilePath === normalizedPath ||
-    normalizedFilePath.startsWith(`${normalizedPath}/`)
+    normalizedFilePath.startsWith(`${normalizedPath}/`) ||
+    getFilePathMatchScore(normalizedFilePathLower, normalizedQuery) !== null
   );
+}
+
+function getFilePathMatchScore(value: string, query: string): number | null {
+  const normalizedValue = normalizePath(value).toLowerCase();
+  const normalizedQuery = normalizePath(query).replace(/\/$/, "").toLowerCase();
+  if (!normalizedQuery) {
+    return null;
+  }
+
+  if (normalizedValue === normalizedQuery) {
+    return 0;
+  }
+
+  if (normalizedValue.startsWith(`${normalizedQuery}/`) || normalizedValue.startsWith(normalizedQuery)) {
+    return 1;
+  }
+
+  const pathParts = normalizedValue.split("/");
+  const fileName = pathParts[pathParts.length - 1] ?? normalizedValue;
+  if (fileName.startsWith(normalizedQuery)) {
+    return 2;
+  }
+
+  if (normalizedValue.includes(normalizedQuery)) {
+    return 3;
+  }
+
+  const queryParts = normalizedQuery.split(/[\/\s]+/).filter(Boolean);
+  if (queryParts.length > 1 && queryParts.every((part) => normalizedValue.includes(part))) {
+    return 4;
+  }
+
+  return null;
 }
 
 function toCachedSidebarTask(task: SidebarTask): CachedSidebarTask {

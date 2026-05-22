@@ -166,6 +166,32 @@ export function isTaskArchivable(line: string): boolean {
   return parsed.checked;
 }
 
+export function getTaskArchiveBlock(
+  lines: string[],
+  lineNumber: number,
+): { text: string; lineCount: number } | null {
+  const taskLine = lines[lineNumber];
+  const parsed = taskLine === undefined ? null : parseTaskLine(taskLine);
+  if (!taskLine || !parsed || !parsed.checked) {
+    return null;
+  }
+
+  const block = [taskLine.trim()];
+  for (let index = lineNumber + 1; index < lines.length; index += 1) {
+    const nextLine = lines[index];
+    if (!isTaskCommentLine(nextLine, parsed.indent)) {
+      break;
+    }
+
+    block.push(nextLine);
+  }
+
+  return {
+    text: block.join("\n"),
+    lineCount: block.length,
+  };
+}
+
 export function wasTaskCompleted(
   previousLine: string,
   currentLine: string,
@@ -204,6 +230,19 @@ export function getCheckboxCursorOffset(line: string): number {
   }
 
   return match[0].length;
+}
+
+function isTaskCommentLine(line: string, taskIndent: string): boolean {
+  const match = /^(\s*)-\s+.*?\s*@comment(?:\([^)]+\))?\s*$/.exec(line);
+  if (!match) {
+    return false;
+  }
+
+  return getIndentLevel(match[1]) > getIndentLevel(taskIndent);
+}
+
+function getIndentLevel(indent: string): number {
+  return [...indent].reduce((level, character) => level + (character === "\t" ? 1 : 0.25), 0);
 }
 
 function normalizePriority(value: string | undefined): TaskPriority {
