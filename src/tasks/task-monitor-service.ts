@@ -1,18 +1,21 @@
 import { App, Editor, EventRef, MarkdownView, Notice, TFile } from "obsidian";
 import { getSettingsCopy } from "../i18n";
 import { TaskEventPipeline } from "../pipeline";
-import type { TaskManagerSettings } from "../types";
+import type { TaskManagerSettings, TaskPriority } from "../types";
 import { getCurrentDateStamp, getCurrentTimestamp } from "../utils/date";
 import { isFileInsideFolder, isMarkdownFile } from "../utils/path";
 import type { ArchiveWriteResult, TaskArchiveService } from "./archive-service";
 import {
   appendDoneToken,
+  appendTaskCommentWithTimestamp,
   createStartLine,
   getCheckboxCursorOffset,
   isEmptyUncheckedTask,
   isTaskArchivable,
   parseTaskLine,
   removeDoneToken,
+  setTaskChecked,
+  setTaskPriority,
   wasTaskCompleted,
   wasTaskReopened,
 } from "./task-line";
@@ -43,6 +46,9 @@ export class TaskMonitorService {
     );
 
     void this.seedSnapshot(this.app.workspace.getActiveFile());
+    if (this.getSettings().preloadVaultOnStartup) {
+      void this.seedSnapshotsForVault();
+    }
   }
 
   stop(): void {
@@ -82,6 +88,65 @@ export class TaskMonitorService {
     }
 
     return archived;
+  }
+
+  async preloadVaultSnapshots(): Promise<void> {
+    await this.seedSnapshotsForVault();
+  }
+
+  async updateTaskPriority(file: TFile, lineNumber: number, priority: TaskPriority): Promise<boolean> {
+    return this.updateTaskLineContent(file, lineNumber, (line) => setTaskPriority(line, priority));
+  }
+
+  async addTaskComment(file: TFile, lineNumber: number, comment: string): Promise<boolean> {
+    return this.updateTaskLineContent(file, lineNumber, (line) =>
+      appendTaskCommentWithTimestamp(
+        line,
+        comment,
+        getCurrentTimestamp(this.getSettings().timestampPrecision),
+      ));
+  }
+
+  async setTaskCompletion(file: TFile, lineNumber: number, checked: boolean): Promise<boolean> {
+    const content = await this.app.vault.cachedRead(file);
+    const lines = content.split("\n");
+    const currentLine = lines[lineNumber];
+    if (currentLine === undefined || !parseTaskLine(currentLine)) {
+      return false;
+    }
+
+    const updatedLine = checked
+      ? setTaskChecked(
+          currentLine,
+          true,
+          this.formatToken(
+            this.getSettings().doneTokenFormat,
+            getCurrentTimestamp(this.getSettings().timestampPrecision),
+          ),
+        )
+      : setTaskChecked(currentLine, false);
+
+    if (!checked || !this.getSettings().immediateArchiveEnabled) {
+      if (updatedLine === currentLine) {
+        return false;
+      }
+
+      lines[lineNumber] = updatedLine;
+      await this.app.vault.modify(file, lines.join("\n"));
+      this.snapshots.set(file.path, lines);
+      return true;
+    }
+
+    await this.archiveService.archiveCompletedTask(
+      file,
+      updatedLine.trim(),
+      getCurrentTimestamp(this.getSettings().timestampPrecision),
+    );
+
+    lines.splice(lineNumber, 1);
+    await this.app.vault.modify(file, lines.join("\n"));
+    this.snapshots.set(file.path, lines);
+    return true;
   }
 
   registerDefaultHandlers(): void {
@@ -299,6 +364,39 @@ export class TaskMonitorService {
 
     const content = await this.app.vault.cachedRead(file);
     this.snapshots.set(file.path, content.split("\n"));
+  }
+
+  private async seedSnapshotsForVault(): Promise<void> {
+    const files = this.app.vault.getMarkdownFiles();
+    await Promise.all(
+      files.map(async (file) => {
+        const content = await this.app.vault.cachedRead(file);
+        this.snapshots.set(file.path, content.split("\n"));
+      }),
+    );
+  }
+
+  private async updateTaskLineContent(
+    file: TFile,
+    lineNumber: number,
+    updater: (line: string) => string,
+  ): Promise<boolean> {
+    const content = await this.app.vault.cachedRead(file);
+    const lines = content.split("\n");
+    const currentLine = lines[lineNumber];
+    if (currentLine === undefined || !parseTaskLine(currentLine)) {
+      return false;
+    }
+
+    const updatedLine = updater(currentLine);
+    if (updatedLine === currentLine) {
+      return false;
+    }
+
+    lines[lineNumber] = updatedLine;
+    await this.app.vault.modify(file, lines.join("\n"));
+    this.snapshots.set(file.path, lines);
+    return true;
   }
 
   private updateSnapshotFromEditor(file: TFile, editor: Editor): void {

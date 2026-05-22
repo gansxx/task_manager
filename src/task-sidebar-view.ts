@@ -13,9 +13,8 @@ import {
 import { getSettingsCopy, resolveLocale } from "./i18n";
 import type TaskManagerPlugin from "./main";
 import {
-  appendTaskComment,
+  getTaskTokenDates,
   parseTaskLine,
-  setTaskPriority,
   stripMetadataTokens,
 } from "./tasks/task-line";
 import type { TaskPriority } from "./types";
@@ -27,6 +26,7 @@ export const TASK_SIDEBAR_VIEW_TYPE = "task-manager-sidebar-view";
 type PriorityFilter = TaskPriority | "all";
 type FileScopeFilter = "current" | "path" | "vault";
 type ArchiveFilter = "all" | "active" | "archived";
+type CompletionFilter = "all" | "open" | "done";
 
 interface SidebarTask {
   file: TFile;
@@ -34,6 +34,9 @@ interface SidebarTask {
   text: string;
   checked: boolean;
   date: string | null;
+  startTimestamp: string | null;
+  doneTimestamp: string | null;
+  durationText: string | null;
   priority: TaskPriority;
   archived: boolean;
   indentLevel: number;
@@ -51,25 +54,33 @@ interface SidebarFilters {
   endDate: string;
   priority: PriorityFilter;
   archive: ArchiveFilter;
+  completion: CompletionFilter;
   filePath: string;
   fileScope: FileScopeFilter;
 }
 
 let cachedSidebarTasks: CachedSidebarTask[] = [];
 
+export async function preloadSidebarTaskCache(app: App): Promise<void> {
+  const tasks = await collectSidebarTasks(app, () => true);
+  cachedSidebarTasks = tasks.map(toCachedSidebarTask);
+}
+
 export class TaskSidebarView extends ItemView {
   private startDateInputEl?: HTMLInputElement;
   private endDateInputEl?: HTMLInputElement;
   private prioritySelectEl?: HTMLSelectElement;
   private archiveSelectEl?: HTMLSelectElement;
-  private folderSelectEl?: HTMLSelectElement;
+  private completionSelectEl?: HTMLSelectElement;
   private filePathInputEl?: HTMLInputElement;
+  private filePathSuggestionsEl?: HTMLElement;
   private taskListEl?: HTMLElement;
   private statusEl?: HTMLElement;
   private loadingEl?: HTMLElement;
   private fileScope: FileScopeFilter = "current";
   private refreshId = 0;
   private readonly collapsedTaskIds = new Set<string>();
+  private folderOptions: string[] = [];
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -94,8 +105,16 @@ export class TaskSidebarView extends ItemView {
     this.renderShell();
     void this.refreshTasks();
     this.registerEvent(this.app.vault.on("modify", () => void this.refreshTasks()));
-    this.registerEvent(this.app.vault.on("create", () => void this.refreshTasks()));
-    this.registerEvent(this.app.vault.on("delete", () => void this.refreshTasks()));
+    this.registerEvent(this.app.vault.on("create", () => {
+      this.updateFolderOptions();
+      this.renderFilePathSuggestions();
+      void this.refreshTasks();
+    }));
+    this.registerEvent(this.app.vault.on("delete", () => {
+      this.updateFolderOptions();
+      this.renderFilePathSuggestions();
+      void this.refreshTasks();
+    }));
     this.registerEvent(this.app.workspace.on("file-open", () => {
       if (this.fileScope === "current") {
         this.setFilePathToActiveFile();
@@ -115,6 +134,7 @@ export class TaskSidebarView extends ItemView {
     container.empty();
     container.addClass("task-manager-sidebar");
     container.setAttr("lang", uiLanguageTag);
+    this.updateFolderOptions();
 
     const header = container.createDiv({ cls: "task-manager-sidebar-header" });
     header.createEl("h3", { text: copy.sidebarTitle });
@@ -125,29 +145,23 @@ export class TaskSidebarView extends ItemView {
     filterDetails.createEl("summary", { text: copy.sidebarFiltersSummary });
     const controls = filterDetails.createDiv({ cls: "task-manager-sidebar-controls" });
     controls.createEl("label", { text: copy.sidebarFilePathLabel });
-    this.filePathInputEl = controls.createEl("input", {
+
+    const filePathContainer = controls.createDiv({ cls: "task-manager-sidebar-file-path-container" });
+    this.filePathInputEl = filePathContainer.createEl("input", {
       type: "text",
       cls: "task-manager-sidebar-file-filter",
       placeholder: copy.sidebarFilePathPlaceholder,
     });
     this.filePathInputEl.addEventListener("input", () => {
       this.fileScope = this.filePathInputEl?.value.trim() ? "path" : "vault";
+      this.renderFilePathSuggestions();
       void this.refreshTasks();
     });
-    this.folderSelectEl = controls.createEl("select", {
-      cls: "task-manager-sidebar-folder-filter",
+    this.filePathInputEl.addEventListener("focus", () => {
+      this.renderFilePathSuggestions();
     });
-    this.populateFolderSelect();
-    this.folderSelectEl.addEventListener("change", () => {
-      const value = this.folderSelectEl?.value ?? "";
-      if (!value) {
-        return;
-      }
-      this.fileScope = "path";
-      if (this.filePathInputEl) {
-        this.filePathInputEl.value = value;
-      }
-      void this.refreshTasks();
+    this.filePathSuggestionsEl = filePathContainer.createDiv({
+      cls: "task-manager-sidebar-file-suggestions",
     });
 
     const fileButtonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
@@ -155,6 +169,7 @@ export class TaskSidebarView extends ItemView {
     currentFileButton.addEventListener("click", () => {
       this.fileScope = "current";
       this.setFilePathToActiveFile();
+      this.renderFilePathSuggestions();
       void this.refreshTasks();
     });
     const vaultButton = fileButtonRow.createEl("button", { text: copy.sidebarWholeVaultButton });
@@ -163,6 +178,7 @@ export class TaskSidebarView extends ItemView {
       if (this.filePathInputEl) {
         this.filePathInputEl.value = "";
       }
+      this.renderFilePathSuggestions();
       void this.refreshTasks();
     });
     const archiveRootButton = fileButtonRow.createEl("button", { text: copy.sidebarArchiveButton });
@@ -174,6 +190,7 @@ export class TaskSidebarView extends ItemView {
       if (this.archiveSelectEl) {
         this.archiveSelectEl.value = "archived";
       }
+      this.renderFilePathSuggestions();
       void this.refreshTasks();
     });
     this.initializeFileFilter();
@@ -194,7 +211,8 @@ export class TaskSidebarView extends ItemView {
     this.startDateInputEl.addEventListener("change", () => void this.refreshTasks());
     this.endDateInputEl.addEventListener("change", () => void this.refreshTasks());
 
-    const selectRow = controls.createDiv({ cls: "task-manager-sidebar-select-row" });
+    const selectRow = controls.createDiv({ cls: "task-manager-sidebar-select-row is-three-columns" });
+
     const priorityColumn = selectRow.createDiv();
     priorityColumn.createEl("label", { text: copy.sidebarPriorityLabel });
     this.prioritySelectEl = priorityColumn.createEl("select", {
@@ -227,6 +245,20 @@ export class TaskSidebarView extends ItemView {
     this.archiveSelectEl.value = "active";
     this.archiveSelectEl.addEventListener("change", () => void this.refreshTasks());
 
+    const completionColumn = selectRow.createDiv();
+    completionColumn.createEl("label", { text: copy.sidebarCompletionLabel });
+    this.completionSelectEl = completionColumn.createEl("select", {
+      cls: "task-manager-sidebar-completion-filter",
+    });
+    for (const [value, label] of [
+      ["all", copy.sidebarCompletionAll],
+      ["open", copy.sidebarCompletionOpen],
+      ["done", copy.sidebarCompletionDone],
+    ] as const) {
+      this.completionSelectEl.createEl("option", { value, text: label });
+    }
+    this.completionSelectEl.addEventListener("change", () => void this.refreshTasks());
+
     const buttonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
     const todayButton = buttonRow.createEl("button", { text: copy.sidebarTodayButton });
     todayButton.addEventListener("click", () => {
@@ -254,11 +286,16 @@ export class TaskSidebarView extends ItemView {
       if (this.archiveSelectEl) {
         this.archiveSelectEl.value = "active";
       }
+      if (this.completionSelectEl) {
+        this.completionSelectEl.value = "all";
+      }
+      this.renderFilePathSuggestions();
       void this.refreshTasks();
     });
 
     this.statusEl = container.createDiv({ cls: "task-manager-sidebar-status" });
     this.taskListEl = container.createDiv({ cls: "task-manager-sidebar-list" });
+    this.renderFilePathSuggestions();
   }
 
   private async refreshTasks(): Promise<void> {
@@ -271,24 +308,15 @@ export class TaskSidebarView extends ItemView {
     this.setLoading(true);
     this.renderTasks(this.getCachedTasks(), filters, true);
 
-    const tasks = await this.collectTasks();
+    const tasks = await collectSidebarTasks(
+      this.app,
+      (file) => this.isMonitoredFile(file),
+    );
     if (refreshId !== this.refreshId) {
       return;
     }
 
-    cachedSidebarTasks = tasks.map((task) => ({
-      filePath: task.file.path,
-      lineNumber: task.lineNumber,
-      text: task.text,
-      checked: task.checked,
-      date: task.date,
-      priority: task.priority,
-      archived: task.archived,
-      indentLevel: task.indentLevel,
-      parentLineNumber: task.parentLineNumber,
-      childLineNumbers: task.childLineNumbers,
-      comments: task.comments,
-    }));
+    cachedSidebarTasks = tasks.map(toCachedSidebarTask);
 
     this.setLoading(false);
     this.renderTasks(tasks, filters, false);
@@ -302,7 +330,9 @@ export class TaskSidebarView extends ItemView {
     const copy = this.copy;
     const visibleTasks = this.getVisibleTasks(tasks, filters);
     this.taskListEl.empty();
-    this.statusEl.setText(`${copy.sidebarStatusTasks(visibleTasks.length)}${this.describeFilters(filters)}${loading ? copy.sidebarStatusLoadingSuffix : ""}`);
+    this.statusEl.setText(
+      `${copy.sidebarStatusTasks(visibleTasks.length)}${this.describeFilters(filters)}${loading ? copy.sidebarStatusLoadingSuffix : ""}`,
+    );
 
     if (visibleTasks.length === 0) {
       this.taskListEl.createDiv({
@@ -338,11 +368,23 @@ export class TaskSidebarView extends ItemView {
     const hasChildren = childTasks.length > 0 || task.comments.length > 0;
     const collapsed = this.collapsedTaskIds.has(taskId);
     const item = container.createDiv({
-      cls: `task-manager-sidebar-task is-priority-${task.priority}${task.archived ? " is-archived" : ""}`,
+      cls: `task-manager-sidebar-task is-priority-${task.priority}${task.archived ? " is-archived" : ""}${task.checked ? " is-completed" : " is-open"}`,
     });
     item.style.setProperty("--task-manager-task-depth", String(depth));
 
     const row = item.createDiv({ cls: "task-manager-sidebar-task-row" });
+    const checkbox = row.createEl("input", {
+      type: "checkbox",
+      cls: "task-manager-sidebar-task-checkbox",
+    });
+    checkbox.checked = task.checked;
+    checkbox.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+    checkbox.addEventListener("change", () => {
+      void this.toggleTaskChecked(task, checkbox.checked);
+    });
+
     const toggle = row.createEl("button", {
       cls: "task-manager-sidebar-task-toggle",
       text: hasChildren ? (collapsed ? "▸" : "▾") : "•",
@@ -369,14 +411,18 @@ export class TaskSidebarView extends ItemView {
 
     const meta = content.createDiv({ cls: "task-manager-sidebar-task-meta" });
     meta.createSpan({ text: task.file.path });
+    meta.createSpan({ text: ` · ${task.checked ? copy.sidebarCompletedBadge : copy.sidebarOpenBadge}` });
     if (task.date) {
       meta.createSpan({ text: ` · ${task.date}` });
     }
     if (task.priority !== "none") {
-      meta.createSpan({ text: ` · ${task.priority}` });
+      meta.createSpan({ text: ` · ${this.getPriorityLabel(task.priority)}` });
     }
     if (task.archived) {
       meta.createSpan({ text: ` · ${copy.sidebarArchivedBadge}` });
+      if (task.durationText) {
+        meta.createSpan({ text: ` · ${copy.sidebarDurationLabel(task.durationText)}` });
+      }
     }
 
     item.addEventListener("click", () => void this.openTask(task));
@@ -426,6 +472,7 @@ export class TaskSidebarView extends ItemView {
       endDate: this.endDateInputEl?.value.trim() ?? "",
       priority: (this.prioritySelectEl?.value as PriorityFilter | undefined) ?? "all",
       archive: (this.archiveSelectEl?.value as ArchiveFilter | undefined) ?? "active",
+      completion: (this.completionSelectEl?.value as CompletionFilter | undefined) ?? "all",
       filePath: this.filePathInputEl?.value.trim() ?? "",
       fileScope: this.fileScope,
     });
@@ -441,6 +488,14 @@ export class TaskSidebarView extends ItemView {
     }
 
     if (filters.archive === "active" && task.archived) {
+      return false;
+    }
+
+    if (filters.completion === "open" && task.checked) {
+      return false;
+    }
+
+    if (filters.completion === "done" && !task.checked) {
       return false;
     }
 
@@ -499,6 +554,16 @@ export class TaskSidebarView extends ItemView {
       descriptions.push(copy.sidebarStatusNotArchived);
     }
 
+    if (filters.completion !== "all") {
+      descriptions.push(
+        copy.sidebarStatusCompletion(
+          filters.completion === "open"
+            ? copy.sidebarCompletionOpen
+            : copy.sidebarCompletionDone,
+        ),
+      );
+    }
+
     if (filters.startDate || filters.endDate) {
       descriptions.push(copy.sidebarStatusDateRange(filters.startDate, filters.endDate));
     }
@@ -510,16 +575,53 @@ export class TaskSidebarView extends ItemView {
     return descriptions.join("");
   }
 
-  private populateFolderSelect(): void {
-    if (!this.folderSelectEl) {
+  private updateFolderOptions(): void {
+    this.folderOptions = getMarkdownFolderOptions(this.app.vault.getMarkdownFiles());
+  }
+
+  private renderFilePathSuggestions(): void {
+    const suggestionsEl = this.filePathSuggestionsEl;
+    if (!suggestionsEl) {
       return;
     }
 
-    this.folderSelectEl.empty();
-    this.folderSelectEl.createEl("option", { value: "", text: this.copy.sidebarFolderSelectPlaceholder });
-    for (const folderPath of getMarkdownFolderOptions(this.app.vault.getMarkdownFiles())) {
-      this.folderSelectEl.createEl("option", { value: folderPath, text: folderPath || "/" });
+    suggestionsEl.empty();
+    const query = this.filePathInputEl?.value.trim().toLowerCase() ?? "";
+    if (!query) {
+      suggestionsEl.hide();
+      return;
     }
+
+    const matches = this.folderOptions
+      .filter((path) => path.toLowerCase().includes(query))
+      .slice(0, 8);
+
+    if (matches.length === 0) {
+      suggestionsEl.createDiv({
+        cls: "task-manager-sidebar-file-suggestion is-empty",
+        text: this.copy.sidebarFileSuggestionsEmpty,
+      });
+      suggestionsEl.show();
+      return;
+    }
+
+    for (const match of matches) {
+      const button = suggestionsEl.createEl("button", {
+        cls: "task-manager-sidebar-file-suggestion",
+        text: match,
+      });
+      button.type = "button";
+      button.addEventListener("click", () => {
+        if (this.filePathInputEl) {
+          this.filePathInputEl.value = match;
+        }
+        this.fileScope = "path";
+        suggestionsEl.hide();
+        void this.refreshTasks();
+      });
+    }
+
+    suggestionsEl.show();
   }
 
   private initializeFileFilter(): void {
@@ -569,70 +671,6 @@ export class TaskSidebarView extends ItemView {
     });
   }
 
-  private async collectTasks(): Promise<SidebarTask[]> {
-    const markdownFiles = this.app.vault
-      .getMarkdownFiles()
-      .filter((file) => this.isMonitoredFile(file));
-    const tasks: SidebarTask[] = [];
-
-    for (const file of markdownFiles) {
-      if (!isMarkdownFile(file)) {
-        continue;
-      }
-
-      const content = await this.app.vault.cachedRead(file);
-      const stack: SidebarTask[] = [];
-      content.split("\n").forEach((line, index) => {
-        const parsedTask = parseTaskLine(line);
-        if (!parsedTask) {
-          const comment = parseCommentLine(line);
-          if (comment) {
-            const parent = [...stack].reverse().find((task) => task.indentLevel < comment.indentLevel);
-            parent?.comments.push(comment.text);
-          }
-          return;
-        }
-
-        const indentLevel = getIndentLevel(parsedTask.indent);
-        while (stack.length > 0 && stack[stack.length - 1].indentLevel >= indentLevel) {
-          stack.pop();
-        }
-        const parent = stack[stack.length - 1] ?? null;
-        const tokenDate = parsedTask.doneToken ?? parsedTask.startToken;
-        const date = tokenDate ? getDatePart(tokenDate.replace(/^@\w+\(|\)$/g, "")) : null;
-        const task: SidebarTask = {
-          file,
-          lineNumber: index,
-          text: parsedTask.body,
-          checked: parsedTask.checked,
-          date,
-          priority: parsedTask.priority,
-          archived: /@archived\([^)]+\)/.test(parsedTask.body),
-          indentLevel,
-          parentLineNumber: parent?.lineNumber ?? null,
-          childLineNumbers: [],
-          comments: [],
-        };
-        parent?.childLineNumbers.push(task.lineNumber);
-        tasks.push(task);
-        stack.push(task);
-      });
-    }
-
-    return tasks.sort((a, b) => {
-      const archiveCompare = Number(a.archived) - Number(b.archived);
-      if (archiveCompare !== 0) {
-        return archiveCompare;
-      }
-
-      const dateCompare = (b.date ?? "").localeCompare(a.date ?? "");
-      if (dateCompare !== 0) {
-        return dateCompare;
-      }
-      return priorityWeight(b.priority) - priorityWeight(a.priority);
-    });
-  }
-
   private isMonitoredFile(file: TFile): boolean {
     if (this.fileScope === "vault") {
       return true;
@@ -657,25 +695,33 @@ export class TaskSidebarView extends ItemView {
   private openTaskMenu(task: SidebarTask, event: MouseEvent): void {
     const copy = this.copy;
     const menu = new Menu();
-    const priorities: TaskPriority[] = ["urgent", "high", "medium", "low", "none"];
 
-    for (const priority of priorities) {
-      menu.addItem((item) =>
-        item
-          .setTitle(copy.sidebarMenuSetPriority(this.getPriorityLabel(priority)))
-          .setIcon(priority === "none" ? "x" : "flag")
-          .onClick(() => void this.updateTaskLine(task, (line) => setTaskPriority(line, priority))),
-      );
-    }
+    menu.addItem((item) =>
+      item
+        .setTitle(task.checked ? copy.sidebarMenuToggleReopen : copy.sidebarMenuToggleComplete)
+        .setIcon(task.checked ? "rotate-ccw" : "check")
+        .onClick(() => void this.toggleTaskChecked(task, !task.checked)),
+    );
 
-    menu.addSeparator();
+    menu.addItem((item) =>
+      item
+        .setTitle(copy.sidebarMenuPriorityParent)
+        .setIcon("flag")
+        .onClick((evt) => this.openPrioritySubmenu(task, evt)),
+    );
+
     menu.addItem((item) =>
       item
         .setTitle(copy.sidebarMenuAddComment)
         .setIcon("message-square-plus")
         .onClick(() => {
           new TaskCommentModal(this.app, copy, async (comment) => {
-            await this.updateTaskLine(task, (line) => appendTaskComment(line, comment));
+            const updated = await this.plugin.addTaskComment(task.file, task.lineNumber, comment);
+            if (!updated) {
+              new Notice(copy.sidebarTaskMissingNotice);
+              return;
+            }
+            void this.refreshTasks();
           }).open();
         }),
     );
@@ -683,22 +729,51 @@ export class TaskSidebarView extends ItemView {
     menu.showAtMouseEvent(event);
   }
 
-  private async updateTaskLine(
+  private openPrioritySubmenu(
     task: SidebarTask,
-    updater: (line: string) => string,
-  ): Promise<void> {
-    await this.app.vault.process(task.file, (content) => {
-      const lines = content.split("\n");
-      const currentLine = lines[task.lineNumber];
-      if (currentLine === undefined || !parseTaskLine(currentLine)) {
-        new Notice(this.copy.sidebarTaskMissingNotice);
-        return content;
-      }
+    evt: MouseEvent | KeyboardEvent,
+  ): void {
+    if (!(evt instanceof MouseEvent)) {
+      return;
+    }
 
-      lines[task.lineNumber] = updater(currentLine);
-      return lines.join("\n");
-    });
-    await this.refreshTasks();
+    const menu = new Menu();
+    const priorities: Array<{ priority: TaskPriority; title: string; icon: string }> = [
+      { priority: "urgent", title: this.copy.sidebarPriorityUrgent, icon: "chevrons-up" },
+      { priority: "high", title: this.copy.sidebarPriorityHigh, icon: "chevron-up" },
+      { priority: "medium", title: this.copy.sidebarPriorityMedium, icon: "minus" },
+      { priority: "low", title: this.copy.sidebarPriorityLow, icon: "chevron-down" },
+      { priority: "none", title: this.copy.sidebarPriorityNone, icon: "x" },
+    ];
+
+    for (const { priority, title, icon } of priorities) {
+      menu.addItem((item) =>
+        item
+          .setTitle(this.copy.sidebarMenuSetPriority(title))
+          .setIcon(icon)
+          .onClick(() => void this.updatePriority(task, priority)),
+      );
+    }
+
+    menu.showAtMouseEvent(evt);
+  }
+
+  private async updatePriority(task: SidebarTask, priority: TaskPriority): Promise<void> {
+    const updated = await this.plugin.updateTaskPriority(task.file, task.lineNumber, priority);
+    if (!updated) {
+      new Notice(this.copy.sidebarTaskMissingNotice);
+      return;
+    }
+    void this.refreshTasks();
+  }
+
+  private async toggleTaskChecked(task: SidebarTask, checked: boolean): Promise<void> {
+    const updated = await this.plugin.setTaskCompletion(task.file, task.lineNumber, checked);
+    if (!updated) {
+      new Notice(this.copy.sidebarTaskMissingNotice);
+      return;
+    }
+    void this.refreshTasks();
   }
 
   private getUiLanguageTag(): string {
@@ -827,7 +902,7 @@ function getIndentLevel(indent: string): number {
 }
 
 function parseCommentLine(line: string): { indentLevel: number; text: string } | null {
-  const match = /^(\s*)-\s+(.*?)\s*@comment\s*$/.exec(line);
+  const match = /^(\s*)-\s+(.*?)\s*@comment(?:\([^)]+\))?\s*$/.exec(line);
   if (!match) {
     return null;
   }
@@ -861,4 +936,121 @@ function matchesFilePath(file: TFile, path: string): boolean {
     normalizedFilePath === normalizedPath ||
     normalizedFilePath.startsWith(`${normalizedPath}/`)
   );
+}
+
+function toCachedSidebarTask(task: SidebarTask): CachedSidebarTask {
+  return {
+    filePath: task.file.path,
+    lineNumber: task.lineNumber,
+    text: task.text,
+    checked: task.checked,
+    date: task.date,
+    startTimestamp: task.startTimestamp,
+    doneTimestamp: task.doneTimestamp,
+    durationText: task.durationText,
+    priority: task.priority,
+    archived: task.archived,
+    indentLevel: task.indentLevel,
+    parentLineNumber: task.parentLineNumber,
+    childLineNumbers: task.childLineNumbers,
+    comments: task.comments,
+  };
+}
+
+async function collectSidebarTasks(
+  app: App,
+  filePredicate: (file: TFile) => boolean,
+): Promise<SidebarTask[]> {
+  const markdownFiles = app.vault.getMarkdownFiles().filter(filePredicate);
+  const tasks: SidebarTask[] = [];
+
+  for (const file of markdownFiles) {
+    if (!isMarkdownFile(file)) {
+      continue;
+    }
+
+    const content = await app.vault.cachedRead(file);
+    const stack: SidebarTask[] = [];
+    content.split("\n").forEach((line, index) => {
+      const parsedTask = parseTaskLine(line);
+      if (!parsedTask) {
+        const comment = parseCommentLine(line);
+        if (comment) {
+          const parent = [...stack].reverse().find((task) => task.indentLevel < comment.indentLevel);
+          parent?.comments.push(comment.text);
+        }
+        return;
+      }
+
+      const indentLevel = getIndentLevel(parsedTask.indent);
+      while (stack.length > 0 && stack[stack.length - 1].indentLevel >= indentLevel) {
+        stack.pop();
+      }
+      const parent = stack[stack.length - 1] ?? null;
+      const tokenDates = getTaskTokenDates(line);
+      const date = getDatePart(tokenDates.done ?? tokenDates.start ?? "");
+      const task: SidebarTask = {
+        file,
+        lineNumber: index,
+        text: parsedTask.body,
+        checked: parsedTask.checked,
+        date,
+        startTimestamp: tokenDates.start,
+        doneTimestamp: tokenDates.done,
+        durationText: tokenDates.start && tokenDates.done
+          ? formatDuration(tokenDates.start, tokenDates.done)
+          : null,
+        priority: parsedTask.priority,
+        archived: /@archived\([^)]+\)/.test(parsedTask.body),
+        indentLevel,
+        parentLineNumber: parent?.lineNumber ?? null,
+        childLineNumbers: [],
+        comments: [],
+      };
+      parent?.childLineNumbers.push(task.lineNumber);
+      tasks.push(task);
+      stack.push(task);
+    });
+  }
+
+  return tasks.sort((a, b) => {
+    const archiveCompare = Number(a.archived) - Number(b.archived);
+    if (archiveCompare !== 0) {
+      return archiveCompare;
+    }
+
+    const completionCompare = Number(a.checked) - Number(b.checked);
+    if (completionCompare !== 0) {
+      return completionCompare;
+    }
+
+    const dateCompare = (b.date ?? "").localeCompare(a.date ?? "");
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+    return priorityWeight(b.priority) - priorityWeight(a.priority);
+  });
+}
+
+function formatDuration(startTimestamp: string, doneTimestamp: string): string {
+  const start = new Date(startTimestamp.replace(" ", "T"));
+  const done = new Date(doneTimestamp.replace(" ", "T"));
+  const diffMs = done.getTime() - start.getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) {
+    return "0m";
+  }
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  return `${Math.max(minutes, 0)}m`;
 }

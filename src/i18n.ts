@@ -33,6 +33,8 @@ interface SettingsCopy {
   archiveDontAskAgainLabel: string;
   immediateArchiveName: string;
   immediateArchiveDesc: string;
+  preloadVaultOnStartupName: string;
+  preloadVaultOnStartupDesc: string;
   githubName: string;
   githubDesc: string;
   githubButtonLabel: string;
@@ -72,6 +74,10 @@ interface SettingsCopy {
   sidebarArchiveAll: string;
   sidebarArchiveActive: string;
   sidebarArchiveArchived: string;
+  sidebarCompletionLabel: string;
+  sidebarCompletionAll: string;
+  sidebarCompletionOpen: string;
+  sidebarCompletionDone: string;
   sidebarTodayButton: string;
   sidebarWeekButton: string;
   sidebarMonthButton: string;
@@ -81,7 +87,10 @@ interface SettingsCopy {
   sidebarNoTasksFound: string;
   sidebarEmptyTask: string;
   sidebarArchivedBadge: string;
+  sidebarCompletedBadge: string;
+  sidebarOpenBadge: string;
   sidebarFolderSelectPlaceholder: string;
+  sidebarFileSuggestionsEmpty: string;
   sidebarStatusTasks: (count: number) => string;
   sidebarStatusLoadingSuffix: string;
   sidebarStatusWholeVault: string;
@@ -91,8 +100,12 @@ interface SettingsCopy {
   sidebarStatusNotArchived: string;
   sidebarStatusDateRange: (startDate: string, endDate: string) => string;
   sidebarStatusPriority: (priority: string) => string;
+  sidebarStatusCompletion: (completion: string) => string;
   sidebarMenuSetPriority: (priority: string) => string;
+  sidebarMenuPriorityParent: string;
   sidebarMenuAddComment: string;
+  sidebarMenuToggleComplete: string;
+  sidebarMenuToggleReopen: string;
   sidebarTaskMissingNotice: string;
   sidebarCommentModalTitle: string;
   sidebarCommentFieldName: string;
@@ -100,6 +113,7 @@ interface SettingsCopy {
   sidebarCommentCancelButton: string;
   sidebarCommentSubmitButton: string;
   sidebarCommentEmptyNotice: string;
+  sidebarDurationLabel: (duration: string) => string;
 }
 
 const COPY: Record<TaskManagerLocale, SettingsCopy> = {
@@ -131,6 +145,9 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
       "默认关闭。开启后勾选任务会立刻归档并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
+    preloadVaultOnStartupName: "启动后后台扫描全库",
+    preloadVaultOnStartupDesc:
+      "默认关闭。开启后，插件启动后会在后台预扫描整个仓库，任务侧边栏切换到全库时无需再等待首次扫描。",
     githubName: "GitHub",
     githubDesc: GITHUB_REPO_URL,
     githubButtonLabel: "打开仓库",
@@ -170,6 +187,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarArchiveAll: "全部任务",
     sidebarArchiveActive: "未归档",
     sidebarArchiveArchived: "已归档",
+    sidebarCompletionLabel: "完成状态",
+    sidebarCompletionAll: "全部状态",
+    sidebarCompletionOpen: "未完成",
+    sidebarCompletionDone: "已完成",
     sidebarTodayButton: "今天",
     sidebarWeekButton: "7 天",
     sidebarMonthButton: "30 天",
@@ -179,7 +200,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarNoTasksFound: "没有找到任务。",
     sidebarEmptyTask: "（空任务）",
     sidebarArchivedBadge: "已归档",
+    sidebarCompletedBadge: "已完成",
+    sidebarOpenBadge: "未完成",
     sidebarFolderSelectPlaceholder: "选择文件夹…",
+    sidebarFileSuggestionsEmpty: "没有匹配的文件夹路径",
     sidebarStatusTasks: (count) => `${count} 个任务`,
     sidebarStatusLoadingSuffix: " · 加载中…",
     sidebarStatusWholeVault: " 在整个仓库中",
@@ -189,8 +213,12 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarStatusNotArchived: " 未归档",
     sidebarStatusDateRange: (startDate, endDate) => ` 从 ${startDate || "…"} 到 ${endDate || "…"}`,
     sidebarStatusPriority: (priority) => ` 优先级：${priority}`,
+    sidebarStatusCompletion: (completion) => ` 状态：${completion}`,
     sidebarMenuSetPriority: (priority) => `设置优先级：${priority}`,
+    sidebarMenuPriorityParent: "设置优先级",
     sidebarMenuAddComment: "添加评论",
+    sidebarMenuToggleComplete: "标记为完成",
+    sidebarMenuToggleReopen: "标记为未完成",
     sidebarTaskMissingNotice: "Task Manager 找不到所选任务所在的行。",
     sidebarCommentModalTitle: "添加任务评论",
     sidebarCommentFieldName: "评论",
@@ -198,6 +226,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarCommentCancelButton: "取消",
     sidebarCommentSubmitButton: "添加评论",
     sidebarCommentEmptyNotice: "评论不能为空。",
+    sidebarDurationLabel: (duration) => `耗时 ${duration}`,
   },
   en: {
     languageName: "Language",
@@ -227,6 +256,9 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:
       "Disabled by default. When enabled, completed tasks are archived and removed from the source note immediately. When disabled, only the @done date is added.",
+    preloadVaultOnStartupName: "Preload whole vault on startup",
+    preloadVaultOnStartupDesc:
+      "Disabled by default. When enabled, the plugin scans the whole vault in the background after startup so the task sidebar can switch to whole-vault results without the first scan delay.",
     githubName: "GitHub",
     githubDesc: GITHUB_REPO_URL,
     githubButtonLabel: "Open repository",
@@ -266,6 +298,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarArchiveAll: "All tasks",
     sidebarArchiveActive: "Not archived",
     sidebarArchiveArchived: "Archived",
+    sidebarCompletionLabel: "Completion",
+    sidebarCompletionAll: "All statuses",
+    sidebarCompletionOpen: "Open",
+    sidebarCompletionDone: "Completed",
     sidebarTodayButton: "Today",
     sidebarWeekButton: "7 days",
     sidebarMonthButton: "30 days",
@@ -275,7 +311,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarNoTasksFound: "No tasks found.",
     sidebarEmptyTask: "(empty task)",
     sidebarArchivedBadge: "archived",
+    sidebarCompletedBadge: "completed",
+    sidebarOpenBadge: "open",
     sidebarFolderSelectPlaceholder: "Select folder…",
+    sidebarFileSuggestionsEmpty: "No matching folder paths",
     sidebarStatusTasks: (count) => `${count} task(s)`,
     sidebarStatusLoadingSuffix: " · loading…",
     sidebarStatusWholeVault: " in whole vault",
@@ -285,8 +324,12 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarStatusNotArchived: " not archived",
     sidebarStatusDateRange: (startDate, endDate) => ` from ${startDate || "…"} to ${endDate || "…"}`,
     sidebarStatusPriority: (priority) => ` with ${priority} priority`,
+    sidebarStatusCompletion: (completion) => ` with ${completion} status`,
     sidebarMenuSetPriority: (priority) => `Set priority: ${priority}`,
+    sidebarMenuPriorityParent: "Set priority",
     sidebarMenuAddComment: "Add comment",
+    sidebarMenuToggleComplete: "Mark complete",
+    sidebarMenuToggleReopen: "Mark incomplete",
     sidebarTaskMissingNotice: "Task Manager could not find the selected task line.",
     sidebarCommentModalTitle: "Add task comment",
     sidebarCommentFieldName: "Comment",
@@ -294,6 +337,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarCommentCancelButton: "Cancel",
     sidebarCommentSubmitButton: "Add comment",
     sidebarCommentEmptyNotice: "Comment cannot be empty.",
+    sidebarDurationLabel: (duration) => `duration ${duration}`,
   },
 };
 

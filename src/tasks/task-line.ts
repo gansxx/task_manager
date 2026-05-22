@@ -5,7 +5,7 @@ const TASK_LINE_REGEX = /^(\s*)-\s\[( |x|X)\]\s?(.*)$/;
 const START_TOKEN_REGEX = /@start\(([^)]+)\)/;
 const DONE_TOKEN_REGEX = /@done\(([^)]+)\)/;
 const PRIORITY_TOKEN_REGEX = /\s*@priority\((none|low|medium|high|urgent)\)/i;
-const COMMENT_TOKEN_REGEX = /\s*@comment(?:\("(?:\\"|[^"])*"\))?/g;
+const COMMENT_TOKEN_REGEX = /\s*@comment\([^)]+\)/g;
 
 export function parseTaskLine(line: string): ParsedTaskLine | null {
   const match = TASK_LINE_REGEX.exec(line);
@@ -78,13 +78,58 @@ export function setTaskPriority(line: string, priority: TaskPriority): string {
 }
 
 export function appendTaskComment(line: string, comment: string): string {
+  return appendTaskCommentWithTimestamp(line, comment, null);
+}
+
+export function appendTaskCommentWithTimestamp(
+  line: string,
+  comment: string,
+  timestamp: string | null,
+): string {
   const parsed = parseTaskLine(line);
   const trimmedComment = comment.trim();
   if (!parsed || !trimmedComment) {
     return line;
   }
 
-  return `${line}\n${parsed.indent}\t- ${trimmedComment} @comment`;
+  const timestampToken = timestamp ? ` @comment(${timestamp})` : " @comment";
+  return `${line}\n${parsed.indent}\t- ${trimmedComment}${timestampToken}`;
+}
+
+export function setTaskChecked(
+  line: string,
+  checked: boolean,
+  doneToken?: string,
+): string {
+  const parsed = parseTaskLine(line);
+  if (!parsed) {
+    return line;
+  }
+
+  if (checked) {
+    const checkedLine = `${parsed.indent}- [x] ${parsed.body}`.trimEnd();
+    if (doneToken) {
+      return appendDoneToken(checkedLine, doneToken);
+    }
+    return checkedLine;
+  }
+
+  const uncheckedLine = `${parsed.indent}- [ ] ${parsed.body}`.trimEnd();
+  return removeDoneToken(uncheckedLine);
+}
+
+export function getTaskTokenDates(line: string): {
+  start: string | null;
+  done: string | null;
+} {
+  const parsed = parseTaskLine(line);
+  if (!parsed) {
+    return { start: null, done: null };
+  }
+
+  const start = START_TOKEN_REGEX.exec(parsed.body)?.[1] ?? null;
+  const done = DONE_TOKEN_REGEX.exec(parsed.body)?.[1] ?? null;
+  return { start, done };
 }
 
 export function stripMetadataTokens(value: string): string {

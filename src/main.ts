@@ -1,10 +1,10 @@
-import { Editor, MarkdownView, Notice, Plugin } from "obsidian";
+import { Editor, MarkdownView, Menu, Modal, Notice, Plugin, Setting, TFile } from "obsidian";
 import { ConfirmModal } from "./confirm-modal";
 import { getSettingsCopy } from "./i18n";
 import { registerDateTokenDecorations } from "./date-token-decorations";
 import { TaskEventPipeline } from "./pipeline";
 import { DEFAULT_SETTINGS, TaskManagerSettingTab } from "./settings";
-import { TASK_SIDEBAR_VIEW_TYPE, TaskSidebarView } from "./task-sidebar-view";
+import { preloadSidebarTaskCache, TASK_SIDEBAR_VIEW_TYPE, TaskSidebarView } from "./task-sidebar-view";
 import { TaskArchiveService } from "./tasks/archive-service";
 import { isTaskArchivable, parseTaskLine, setTaskPriority } from "./tasks/task-line";
 import { TaskMonitorService } from "./tasks/task-monitor-service";
@@ -31,6 +31,9 @@ export default class TaskManagerPlugin extends Plugin {
 
     this.monitorService.registerDefaultHandlers();
     this.monitorService.start();
+    if (this.settings.preloadVaultOnStartup) {
+      void preloadSidebarTaskCache(this.app);
+    }
     this.updateMetadataTokenVisibility();
     this.register(() => activeDocument.body.removeClass("task-manager-hide-metadata-tokens"));
     registerDateTokenDecorations(this);
@@ -61,6 +64,10 @@ export default class TaskManagerPlugin extends Plugin {
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
     this.updateMetadataTokenVisibility();
+    if (this.settings.preloadVaultOnStartup) {
+      void preloadSidebarTaskCache(this.app);
+      void this.monitorService.preloadVaultSnapshots();
+    }
   }
 
   updateMetadataTokenVisibility(): void {
@@ -114,40 +121,37 @@ export default class TaskManagerPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor) => {
         const lineText = editor.getLine(editor.getCursor().line);
+        const activeFile = this.app.workspace.getActiveFile();
         if (!parseTaskLine(lineText)) {
           return;
         }
-
         menu.addItem((item) =>
           item
-            .setTitle("Task priority: urgent")
-            .setIcon("chevrons-up")
-            .onClick(() => this.setCurrentTaskPriority(editor, "urgent")),
+            .setTitle("Priority")
+            .setIcon("flag")
+            .onClick((evt) => this.openPrioritySubmenu(evt, (priority) => {
+              this.setCurrentTaskPriority(editor, priority);
+            })),
         );
-        menu.addItem((item) =>
-          item
-            .setTitle("Task priority: high")
-            .setIcon("chevron-up")
-            .onClick(() => this.setCurrentTaskPriority(editor, "high")),
-        );
-        menu.addItem((item) =>
-          item
-            .setTitle("Task priority: medium")
-            .setIcon("minus")
-            .onClick(() => this.setCurrentTaskPriority(editor, "medium")),
-        );
-        menu.addItem((item) =>
-          item
-            .setTitle("Task priority: low")
-            .setIcon("chevron-down")
-            .onClick(() => this.setCurrentTaskPriority(editor, "low")),
-        );
-        menu.addItem((item) =>
-          item
-            .setTitle("Task priority: none")
-            .setIcon("x")
-            .onClick(() => this.setCurrentTaskPriority(editor, "none")),
-        );
+        if (activeFile) {
+          menu.addItem((item) =>
+            item
+              .setTitle(this.copy.sidebarMenuAddComment)
+              .setIcon("message-square-plus")
+              .onClick(() => {
+                new TaskCommentInputModal(this.app, this.copy, async (comment) => {
+                  const updated = await this.addTaskComment(
+                    activeFile,
+                    editor.getCursor().line,
+                    comment,
+                  );
+                  if (!updated) {
+                    new Notice(this.copy.sidebarTaskMissingNotice);
+                  }
+                }).open();
+              }),
+          );
+        }
       }),
     );
   }
@@ -173,6 +177,18 @@ export default class TaskManagerPlugin extends Plugin {
     if (nextLine !== lineText) {
       editor.setLine(lineNumber, nextLine);
     }
+  }
+
+  async updateTaskPriority(file: TFile, lineNumber: number, priority: TaskPriority): Promise<boolean> {
+    return this.monitorService.updateTaskPriority(file, lineNumber, priority);
+  }
+
+  async addTaskComment(file: TFile, lineNumber: number, comment: string): Promise<boolean> {
+    return this.monitorService.addTaskComment(file, lineNumber, comment);
+  }
+
+  async setTaskCompletion(file: TFile, lineNumber: number, checked: boolean): Promise<boolean> {
+    return this.monitorService.setTaskCompletion(file, lineNumber, checked);
   }
 
   private async activateTaskSidebar(): Promise<void> {
@@ -299,5 +315,82 @@ export default class TaskManagerPlugin extends Plugin {
 
   private get copy() {
     return getSettingsCopy(this.settings);
+  }
+
+  private openPrioritySubmenu(
+    evt: MouseEvent | KeyboardEvent,
+    onSelect: (priority: TaskPriority) => void,
+  ): void {
+    if (!(evt instanceof MouseEvent)) {
+      return;
+    }
+
+    const menu = new Menu();
+    const priorities: Array<{ priority: TaskPriority; title: string; icon: string }> = [
+      { priority: "urgent", title: this.copy.sidebarPriorityUrgent, icon: "chevrons-up" },
+      { priority: "high", title: this.copy.sidebarPriorityHigh, icon: "chevron-up" },
+      { priority: "medium", title: this.copy.sidebarPriorityMedium, icon: "minus" },
+      { priority: "low", title: this.copy.sidebarPriorityLow, icon: "chevron-down" },
+      { priority: "none", title: this.copy.sidebarPriorityNone, icon: "x" },
+    ];
+
+    for (const { priority, title, icon } of priorities) {
+      menu.addItem((item) =>
+        item
+          .setTitle(this.copy.sidebarMenuSetPriority(title))
+          .setIcon(icon)
+          .onClick(() => onSelect(priority)),
+      );
+    }
+
+    menu.showAtMouseEvent(evt);
+  }
+}
+
+class TaskCommentInputModal extends Modal {
+  private comment = "";
+
+  constructor(
+    app: Plugin["app"],
+    private readonly copy: ReturnType<typeof getSettingsCopy>,
+    private readonly onSubmit: (comment: string) => Promise<void>,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    this.setTitle(this.copy.sidebarCommentModalTitle);
+    this.contentEl.empty();
+    new Setting(this.contentEl)
+      .setName(this.copy.sidebarCommentFieldName)
+      .addTextArea((text) => {
+        text.inputEl.rows = 4;
+        text.setPlaceholder(this.copy.sidebarCommentFieldPlaceholder).onChange((value) => {
+          this.comment = value;
+        });
+      });
+
+    new Setting(this.contentEl)
+      .addButton((button) =>
+        button.setButtonText(this.copy.sidebarCommentCancelButton).onClick(() => this.close()),
+      )
+      .addButton((button) =>
+        button
+          .setButtonText(this.copy.sidebarCommentSubmitButton)
+          .setCta()
+          .onClick(() => {
+            const comment = this.comment.trim();
+            if (!comment) {
+              new Notice(this.copy.sidebarCommentEmptyNotice);
+              return;
+            }
+
+            void this.onSubmit(comment).then(() => this.close());
+          }),
+      );
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
   }
 }

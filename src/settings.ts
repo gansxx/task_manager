@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: TaskManagerSettings = {
   hideMetadataTokens: false,
   skipArchiveConfirmation: false,
   immediateArchiveEnabled: false,
+  preloadVaultOnStartup: false,
   languageMode: "auto",
 };
 
@@ -128,6 +129,18 @@ export class TaskManagerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.immediateArchiveEnabled)
           .onChange(async (value) => {
             this.plugin.settings.immediateArchiveEnabled = value;
+            await this.onSave();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.preloadVaultOnStartupName)
+      .setDesc(copy.preloadVaultOnStartupDesc)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.preloadVaultOnStartup)
+          .onChange(async (value) => {
+            this.plugin.settings.preloadVaultOnStartup = value;
             await this.onSave();
           }),
       );

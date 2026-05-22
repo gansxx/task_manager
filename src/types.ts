@@ -13,6 +13,7 @@ export interface TaskManagerSettings {
   hideMetadataTokens: boolean;
   skipArchiveConfirmation: boolean;
   immediateArchiveEnabled: boolean;
+  preloadVaultOnStartup: boolean;
   languageMode: TaskManagerLanguageMode;
 }
 
