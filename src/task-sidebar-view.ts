@@ -79,6 +79,7 @@ export class TaskSidebarView extends ItemView {
   private archiveSelectEl?: HTMLSelectElement;
   private completionSelectEl?: HTMLSelectElement;
   private filePathInputEl?: HTMLInputElement;
+  private favoritePathSelectEl?: HTMLSelectElement;
   private filePathSuggestionsEl?: HTMLElement;
   private taskListEl?: HTMLElement;
   private statusEl?: HTMLElement;
@@ -196,9 +197,42 @@ export class TaskSidebarView extends ItemView {
     this.filePathInputEl.addEventListener("focus", () => {
       this.renderFilePathSuggestions();
     });
+    const favoriteActionButton = filePathContainer.createEl("button", {
+      cls: "task-manager-sidebar-file-action-button",
+      text: "+",
+    });
+    favoriteActionButton.type = "button";
+    favoriteActionButton.title = copy.sidebarFavoriteAddTooltip;
+    favoriteActionButton.setAttr("aria-label", copy.sidebarFavoriteAddTooltip);
+    favoriteActionButton.addEventListener("click", () => {
+      void this.addFavoritePathFromInput();
+    });
     this.filePathSuggestionsEl = filePathContainer.createDiv({
       cls: "task-manager-sidebar-file-suggestions",
     });
+
+    controls.createEl("label", { text: copy.sidebarFavoritePathsLabel });
+    const favoriteSection = controls.createDiv({ cls: "task-manager-sidebar-favorites" });
+    this.favoritePathSelectEl = favoriteSection.createEl("select", {
+      cls: "task-manager-sidebar-favorite-select",
+    });
+    this.favoritePathSelectEl.addEventListener("change", () => {
+      const path = this.favoritePathSelectEl?.value ?? "";
+      if (path) {
+        this.applyFilePathSelection(path);
+      }
+    });
+    const removeFavoriteButton = favoriteSection.createEl("button", {
+      cls: "task-manager-sidebar-favorite-remove-button",
+      text: "-",
+    });
+    removeFavoriteButton.type = "button";
+    removeFavoriteButton.title = copy.sidebarFavoriteRemoveTooltip;
+    removeFavoriteButton.setAttr("aria-label", copy.sidebarFavoriteRemoveTooltip);
+    removeFavoriteButton.addEventListener("click", () => {
+      void this.removeSelectedFavoritePath();
+    });
+    this.renderFavoritePaths();
 
     const fileButtonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
     const currentFileButton = fileButtonRow.createEl("button", { text: copy.sidebarCurrentFileButton });
@@ -664,6 +698,32 @@ export class TaskSidebarView extends ItemView {
     suggestionsEl.show();
   }
 
+  private renderFavoritePaths(): void {
+    const selectEl = this.favoritePathSelectEl;
+    if (!selectEl) {
+      return;
+    }
+
+    const favorites = [...this.plugin.settings.favoritePaths].sort((a, b) => a.localeCompare(b));
+    const selectedValue = selectEl.value;
+    selectEl.empty();
+    selectEl.createEl("option", {
+      value: "",
+      text: this.copy.sidebarFavoritePathsEmpty,
+    });
+    for (const path of favorites) {
+      selectEl.createEl("option", {
+        value: path,
+        text: path,
+      });
+    }
+    if (selectedValue && favorites.includes(selectedValue)) {
+      selectEl.value = selectedValue;
+    } else {
+      selectEl.value = "";
+    }
+  }
+
   private initializeFileFilter(): void {
     const watchedFolder = this.plugin.settings.watchedFolder.trim();
     if (watchedFolder) {
@@ -682,6 +742,39 @@ export class TaskSidebarView extends ItemView {
     }
 
     this.filePathInputEl.value = this.app.workspace.getActiveFile()?.path ?? "";
+  }
+
+  private async addFavoritePathFromInput(): Promise<void> {
+    const path = normalizeSidebarPath(this.filePathInputEl?.value ?? "");
+    if (!path) {
+      new Notice(this.copy.sidebarFavoriteInputMissingNotice);
+      return;
+    }
+
+    if (this.plugin.settings.favoritePaths.includes(path)) {
+      new Notice(this.copy.sidebarFavoriteExistsNotice(path));
+      return;
+    }
+
+    this.plugin.settings.favoritePaths = [...this.plugin.settings.favoritePaths, path];
+    await this.plugin.saveSettings();
+    this.renderFavoritePaths();
+    if (this.favoritePathSelectEl) {
+      this.favoritePathSelectEl.value = path;
+    }
+    new Notice(this.copy.sidebarFavoriteSavedNotice(path));
+  }
+
+  private async removeSelectedFavoritePath(): Promise<void> {
+    const path = this.favoritePathSelectEl?.value ?? "";
+    if (!path) {
+      return;
+    }
+
+    this.plugin.settings.favoritePaths = this.plugin.settings.favoritePaths.filter((entry) => entry !== path);
+    await this.plugin.saveSettings();
+    this.renderFavoritePaths();
+    new Notice(this.copy.sidebarFavoriteRemovedNotice(path));
   }
 
   private setDateRange(startDate: string, endDate: string): void {
@@ -1218,4 +1311,9 @@ function formatDuration(startTimestamp: string, doneTimestamp: string): string {
     return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
   }
   return `${Math.max(minutes, 0)}m`;
+}
+
+function normalizeSidebarPath(value: string): string {
+  const trimmed = value.trim();
+  return trimmed ? normalizePath(trimmed) : "";
 }

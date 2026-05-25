@@ -59,6 +59,10 @@ interface SettingsCopy {
   sidebarFiltersSummary: string;
   sidebarFilePathLabel: string;
   sidebarFilePathPlaceholder: string;
+  sidebarFavoritePathsLabel: string;
+  sidebarFavoritePathsEmpty: string;
+  sidebarFavoriteAddTooltip: string;
+  sidebarFavoriteRemoveTooltip: string;
   sidebarCurrentFileButton: string;
   sidebarWholeVaultButton: string;
   sidebarArchiveButton: string;
@@ -91,6 +95,11 @@ interface SettingsCopy {
   sidebarOpenBadge: string;
   sidebarFolderSelectPlaceholder: string;
   sidebarFileSuggestionsEmpty: string;
+  sidebarFavoriteSavedNotice: (path: string) => string;
+  sidebarFavoriteRemovedNotice: (path: string) => string;
+  sidebarFavoriteExistsNotice: (path: string) => string;
+  sidebarFavoriteInputMissingNotice: string;
+  sidebarCurrentFileMissingNotice: string;
   sidebarStatusTasks: (count: number) => string;
   sidebarStatusLoadingSuffix: string;
   sidebarStatusWholeVault: string;
@@ -172,6 +181,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarFiltersSummary: "筛选器",
     sidebarFilePathLabel: "文件路径",
     sidebarFilePathPlaceholder: "当前文件、文件夹，或留空表示整个库",
+    sidebarFavoritePathsLabel: "收藏路径",
+    sidebarFavoritePathsEmpty: "还没有收藏路径",
+    sidebarFavoriteAddTooltip: "加入收藏",
+    sidebarFavoriteRemoveTooltip: "删除收藏路径",
     sidebarCurrentFileButton: "当前文件",
     sidebarWholeVaultButton: "整个仓库",
     sidebarArchiveButton: "归档",
@@ -204,6 +217,11 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarOpenBadge: "未完成",
     sidebarFolderSelectPlaceholder: "选择文件夹…",
     sidebarFileSuggestionsEmpty: "没有匹配的文件或文件夹路径",
+    sidebarFavoriteSavedNotice: (path) => `已收藏路径：${path}`,
+    sidebarFavoriteRemovedNotice: (path) => `已删除收藏路径：${path}`,
+    sidebarFavoriteExistsNotice: (path) => `该路径已在收藏中：${path}`,
+    sidebarFavoriteInputMissingNotice: "请先在文件路径输入框中输入要收藏的路径。",
+    sidebarCurrentFileMissingNotice: "当前没有可用的 Markdown 文件路径。",
     sidebarStatusTasks: (count) => `${count} 个任务`,
     sidebarStatusLoadingSuffix: " · 加载中…",
     sidebarStatusWholeVault: " 在整个仓库中",
@@ -283,6 +301,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarFiltersSummary: "Filters",
     sidebarFilePathLabel: "File path",
     sidebarFilePathPlaceholder: "Current file, folder, or blank for vault",
+    sidebarFavoritePathsLabel: "Favorite paths",
+    sidebarFavoritePathsEmpty: "No favorite paths yet",
+    sidebarFavoriteAddTooltip: "Add to favorites",
+    sidebarFavoriteRemoveTooltip: "Remove favorite path",
     sidebarCurrentFileButton: "Current file",
     sidebarWholeVaultButton: "Whole vault",
     sidebarArchiveButton: "Archive",
@@ -315,6 +337,11 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarOpenBadge: "open",
     sidebarFolderSelectPlaceholder: "Select folder…",
     sidebarFileSuggestionsEmpty: "No matching file or folder paths",
+    sidebarFavoriteSavedNotice: (path) => `Saved favorite path: ${path}`,
+    sidebarFavoriteRemovedNotice: (path) => `Removed favorite path: ${path}`,
+    sidebarFavoriteExistsNotice: (path) => `This path is already saved: ${path}`,
+    sidebarFavoriteInputMissingNotice: "Enter a path in the file path field before saving it.",
+    sidebarCurrentFileMissingNotice: "There is no active Markdown file path right now.",
     sidebarStatusTasks: (count) => `${count} task(s)`,
     sidebarStatusLoadingSuffix: " · loading…",
     sidebarStatusWholeVault: " in whole vault",

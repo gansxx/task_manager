@@ -28,7 +28,7 @@ Task Manager starts working as soon as you enable it(**Zero Config**):
 ---
 
 ## Pro tips
-- Open the **Task Manager** sidebar to filter tasks by date range and priority across monitored notes.
+- Open the **Task Manager** sidebar to filter tasks by date range, priority, and file path across monitored notes, and save favorite paths for quick reuse.
 ![Task filter sidebar](./assets/media/task_filter.png)
 ---
 

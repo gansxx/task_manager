@@ -6,6 +6,7 @@ import type { TaskManagerSettings } from "./types";
 export const DEFAULT_SETTINGS: TaskManagerSettings = {
   watchedFolder: "",
   archiveRootFolder: "Task Archive",
+  favoritePaths: [],
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
   timestampPrecision: "date",
