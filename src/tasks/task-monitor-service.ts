@@ -1,4 +1,5 @@
-import { App, Editor, EventRef, MarkdownView, TFile } from "obsidian";
+import { App, Editor, EventRef, MarkdownView, Notice, TFile } from "obsidian";
+import { getSettingsCopy } from "../i18n";
 import { TaskEventPipeline } from "../pipeline";
 import type { TaskManagerSettings, TaskPriority } from "../types";
 import { getCurrentDateStamp, getCurrentTimestamp } from "../utils/date";
@@ -40,6 +41,12 @@ export class TaskMonitorService {
   ) {}
 
   start(): void {
+    this.eventRefs.push(
+      this.app.workspace.on("editor-change", (editor, info) => {
+        void this.handleEditorChange(editor, info as MarkdownView | null);
+      }),
+    );
+
     this.eventRefs.push(
       this.app.workspace.on("file-open", (file) => {
         void this.seedSnapshot(file);
@@ -252,6 +259,110 @@ export class TaskMonitorService {
     });
   }
 
+  private async handleEditorChange(
+    editor: Editor,
+    info: MarkdownView | null,
+  ): Promise<void> {
+    const file = info?.file;
+    if (!file || !isMarkdownFile(file)) {
+      return;
+    }
+
+    if (!this.isMonitoredFile(file)) {
+      this.updateSnapshotFromEditor(file, editor);
+      return;
+    }
+
+    if (this.isSuppressed(file.path)) {
+      this.updateSnapshotFromEditor(file, editor);
+      return;
+    }
+
+    const currentLines = this.getEditorLines(editor);
+    const previousLines = this.snapshots.get(file.path) ?? currentLines;
+    const changedLineNumbers = this.getChangedLineNumbers(previousLines, currentLines);
+    const date = getCurrentTimestamp(this.getSettings().timestampPrecision);
+
+    for (const lineNumber of changedLineNumbers) {
+      const currentLine = currentLines[lineNumber] ?? "";
+      const previousLine = previousLines[lineNumber] ?? "";
+      if (!isEmptyUncheckedTask(currentLine)) {
+        continue;
+      }
+
+      const parsedTask = parseTaskLine(currentLine);
+      if (!parsedTask) {
+        continue;
+      }
+
+      await this.pipeline.emit({
+        type: "taskCreated",
+        file,
+        editor,
+        lineNumber,
+        previousLine,
+        currentLine,
+        parsedTask,
+        date,
+      });
+    }
+
+    for (const lineNumber of changedLineNumbers) {
+      const currentLine = currentLines[lineNumber] ?? "";
+      const previousLine = previousLines[lineNumber] ?? "";
+      if (!wasTaskReopened(previousLine, currentLine)) {
+        continue;
+      }
+
+      const parsedTask = parseTaskLine(currentLine);
+      if (!parsedTask) {
+        continue;
+      }
+
+      await this.pipeline.emit({
+        type: "taskReopened",
+        file,
+        editor,
+        lineNumber,
+        previousLine,
+        currentLine,
+        parsedTask,
+        date,
+      });
+    }
+
+    for (const lineNumber of [...changedLineNumbers].reverse()) {
+      const currentLine = currentLines[lineNumber] ?? "";
+      const previousLine = previousLines[lineNumber] ?? "";
+      if (!wasTaskCompleted(previousLine, currentLine)) {
+        continue;
+      }
+
+      const parsedTask = parseTaskLine(currentLine);
+      if (!parsedTask) {
+        continue;
+      }
+
+      try {
+        await this.pipeline.emit({
+          type: "taskCompleted",
+          file,
+          editor,
+          lineNumber,
+          previousLine,
+          currentLine,
+          parsedTask,
+          date,
+        });
+      } catch (error) {
+        console.error("Task Manager: failed to archive completed task", error);
+        new Notice(getSettingsCopy(this.getSettings()).archiveFailureNotice);
+      }
+    }
+
+    this.updateSnapshotFromEditor(file, editor);
+  }
+
   private isMonitoredFile(file: TFile): boolean {
     const watchedFolder = this.getSettings().watchedFolder;
     if (!watchedFolder.trim()) {
@@ -267,6 +378,22 @@ export class TaskMonitorService {
 
   private getEditorLines(editor: Editor): string[] {
     return editor.getValue().split("\n");
+  }
+
+  private getChangedLineNumbers(
+    previousLines: string[],
+    currentLines: string[],
+  ): number[] {
+    const lineCount = Math.max(previousLines.length, currentLines.length);
+    const changedLineNumbers: number[] = [];
+
+    for (let lineNumber = 0; lineNumber < lineCount; lineNumber += 1) {
+      if ((previousLines[lineNumber] ?? "") !== (currentLines[lineNumber] ?? "")) {
+        changedLineNumbers.push(lineNumber);
+      }
+    }
+
+    return changedLineNumbers;
   }
 
   private async seedSnapshot(file: TFile | null): Promise<void> {

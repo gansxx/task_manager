@@ -7,6 +7,7 @@ import {
   normalizePath,
   Notice,
   Setting,
+  setIcon,
   TFile,
   WorkspaceLeaf,
 } from "obsidian";
@@ -148,19 +149,24 @@ export class TaskSidebarView extends ItemView {
 
     const header = container.createDiv({ cls: "task-manager-sidebar-header" });
     header.createEl("h3", { text: copy.sidebarTitle });
-    const refreshButton = header.createEl("button", {
-      cls: "task-manager-sidebar-refresh-button",
-      text: copy.sidebarRefreshButton,
-    });
-    refreshButton.type = "button";
-    refreshButton.addEventListener("click", () => {
-      void this.plugin.refreshTasks();
-    });
     this.loadingEl = header.createDiv({ cls: "task-manager-sidebar-loading" });
 
     const filterDetails = container.createEl("details", { cls: "task-manager-sidebar-filter-details" });
     filterDetails.open = true;
-    filterDetails.createEl("summary", { text: copy.sidebarFiltersSummary });
+    const filterSummary = filterDetails.createEl("summary");
+    filterSummary.createSpan({ text: copy.sidebarFiltersSummary });
+    const refreshButton = filterSummary.createEl("button", {
+      cls: "task-manager-sidebar-refresh-button",
+    });
+    refreshButton.type = "button";
+    refreshButton.title = copy.refreshTasksRibbonTitle;
+    refreshButton.setAttr("aria-label", copy.refreshTasksRibbonTitle);
+    setIcon(refreshButton, "refresh-cw");
+    refreshButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void this.plugin.refreshTasks();
+    });
     const controls = filterDetails.createDiv({ cls: "task-manager-sidebar-controls" });
     controls.createEl("label", { text: copy.sidebarFilePathLabel });
 
