@@ -31,9 +31,7 @@ export default class TaskManagerPlugin extends Plugin {
 
     this.monitorService.registerDefaultHandlers();
     this.monitorService.start();
-    if (this.settings.preloadVaultOnStartup) {
-      void preloadSidebarTaskCache(this.app);
-    }
+    void preloadSidebarTaskCache(this.app);
     this.updateMetadataTokenVisibility();
     this.register(() => activeDocument.body.removeClass("task-manager-hide-metadata-tokens"));
     registerDateTokenDecorations(this);
@@ -42,6 +40,7 @@ export default class TaskManagerPlugin extends Plugin {
       (leaf) => new TaskSidebarView(leaf, this),
     );
     this.registerArchiveUi();
+    this.registerRefreshUi();
     this.registerPriorityUi();
     this.registerTaskSidebarUi();
 
@@ -102,6 +101,20 @@ export default class TaskManagerPlugin extends Plugin {
         );
       }),
     );
+  }
+
+  private registerRefreshUi(): void {
+    this.addRibbonIcon("refresh-cw", this.copy.refreshTasksRibbonTitle, () => {
+      void this.refreshTasks();
+    });
+
+    this.addCommand({
+      id: "refresh-task-manager-tasks",
+      name: this.copy.refreshTasksRibbonTitle,
+      callback: () => {
+        void this.refreshTasks();
+      },
+    });
   }
 
 
@@ -214,6 +227,29 @@ export default class TaskManagerPlugin extends Plugin {
 
   async setTaskCompletion(file: TFile, lineNumber: number, checked: boolean): Promise<boolean> {
     return this.monitorService.setTaskCompletion(file, lineNumber, checked);
+  }
+
+  async refreshTasks(): Promise<void> {
+    try {
+      const result = await this.monitorService.refreshTasks();
+      await preloadSidebarTaskCache(this.app);
+      for (const leaf of this.app.workspace.getLeavesOfType(TASK_SIDEBAR_VIEW_TYPE)) {
+        if (leaf.view instanceof TaskSidebarView) {
+          leaf.view.refreshNow(false);
+        }
+      }
+      new Notice(
+        this.copy.taskRefreshSuccessNotice(
+          result.scannedFiles,
+          result.updatedFiles,
+          result.archivedTasks,
+        ),
+        10000,
+      );
+    } catch (error) {
+      console.error("Task Manager: failed to refresh tasks", error);
+      new Notice(this.copy.taskRefreshFailureNotice);
+    }
   }
 
   private async activateTaskSidebar(): Promise<void> {

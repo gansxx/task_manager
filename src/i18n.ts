@@ -38,6 +38,9 @@ interface SettingsCopy {
   githubName: string;
   githubDesc: string;
   githubButtonLabel: string;
+  refreshTasksRibbonTitle: string;
+  taskRefreshSuccessNotice: (scannedFiles: number, updatedFiles: number, archivedTasks: number) => string;
+  taskRefreshFailureNotice: string;
   archiveFailureNotice: string;
   archiveCurrentFileRibbonTitle: string;
   archiveCurrentTaskMenuLabel: string;
@@ -56,6 +59,7 @@ interface SettingsCopy {
   archiveSingleTaskSuccessWithPath: (path: string) => string;
   archivePageSuccessWithPaths: (count: number, paths: string[]) => string;
   sidebarTitle: string;
+  sidebarRefreshButton: string;
   sidebarFiltersSummary: string;
   sidebarFilePathLabel: string;
   sidebarFilePathPlaceholder: string;
@@ -160,6 +164,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     githubName: "GitHub",
     githubDesc: GITHUB_REPO_URL,
     githubButtonLabel: "打开仓库",
+    refreshTasksRibbonTitle: "刷新任务",
+    taskRefreshSuccessNotice: (scannedFiles, updatedFiles, archivedTasks) =>
+      `已刷新任务：扫描 ${scannedFiles} 个文件，更新 ${updatedFiles} 个文件，归档 ${archivedTasks} 个任务。`,
+    taskRefreshFailureNotice: "Task Manager 刷新任务时失败。",
     archiveFailureNotice: "Task Manager 归档已完成任务时失败。",
     archiveCurrentFileRibbonTitle: "归档当前页面中的全部任务",
     archiveCurrentTaskMenuLabel: "归档当前任务",
@@ -178,6 +186,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveSingleTaskSuccessWithPath: (path) => `已归档当前任务。归档位置：${path}`,
     archivePageSuccessWithPaths: (count, paths) => `已归档 ${count} 个任务。归档位置：${paths.join("；")}`,
     sidebarTitle: "任务",
+    sidebarRefreshButton: "刷新",
     sidebarFiltersSummary: "筛选器",
     sidebarFilePathLabel: "文件路径",
     sidebarFilePathPlaceholder: "当前文件、文件夹，或留空表示整个库",
@@ -280,6 +289,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     githubName: "GitHub",
     githubDesc: GITHUB_REPO_URL,
     githubButtonLabel: "Open repository",
+    refreshTasksRibbonTitle: "Refresh tasks",
+    taskRefreshSuccessNotice: (scannedFiles, updatedFiles, archivedTasks) =>
+      `Refreshed tasks: scanned ${scannedFiles} file(s), updated ${updatedFiles} file(s), archived ${archivedTasks} task(s).`,
+    taskRefreshFailureNotice: "Task Manager could not refresh tasks.",
     archiveFailureNotice: "Task Manager could not archive the completed task.",
     archiveCurrentFileRibbonTitle: "Archive all tasks in the current note",
     archiveCurrentTaskMenuLabel: "Archive current task",
@@ -298,6 +311,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveSingleTaskSuccessWithPath: (path) => `Archived the current task to ${path}`,
     archivePageSuccessWithPaths: (count, paths) => `Archived ${count} tasks to ${paths.join("; ")}`,
     sidebarTitle: "Tasks",
+    sidebarRefreshButton: "Refresh",
     sidebarFiltersSummary: "Filters",
     sidebarFilePathLabel: "File path",
     sidebarFilePathPlaceholder: "Current file, folder, or blank for vault",

@@ -176,10 +176,16 @@ export function getTaskArchiveBlock(
     return null;
   }
 
+  const taskIndentLevel = getIndentLevel(parsed.indent);
   const block = [taskLine.trim()];
   for (let index = lineNumber + 1; index < lines.length; index += 1) {
     const nextLine = lines[index];
-    if (!isTaskCommentLine(nextLine, parsed.indent)) {
+    if (isBlankLineInsideTaskBlock(lines, index, taskIndentLevel)) {
+      block.push(nextLine);
+      continue;
+    }
+
+    if (!isDescendantLine(nextLine, taskIndentLevel)) {
       break;
     }
 
@@ -232,16 +238,41 @@ export function getCheckboxCursorOffset(line: string): number {
   return match[0].length;
 }
 
-function isTaskCommentLine(line: string, taskIndent: string): boolean {
-  const match = /^(\s*)-\s+.*?\s*@comment(?:\([^)]+\))?\s*$/.exec(line);
+function isBlankLineInsideTaskBlock(
+  lines: string[],
+  lineNumber: number,
+  taskIndentLevel: number,
+): boolean {
+  if (lines[lineNumber]?.trim() !== "") {
+    return false;
+  }
+
+  for (let index = lineNumber + 1; index < lines.length; index += 1) {
+    const nextLine = lines[index];
+    if (nextLine.trim() === "") {
+      continue;
+    }
+
+    return isDescendantLine(nextLine, taskIndentLevel);
+  }
+
+  return false;
+}
+
+function isDescendantLine(line: string, taskIndentLevel: number): boolean {
+  if (!line.trim()) {
+    return false;
+  }
+
+  const match = /^(\s*)/.exec(line);
   if (!match) {
     return false;
   }
 
-  return getIndentLevel(match[1]) > getIndentLevel(taskIndent);
+  return getIndentLevel(match[1]) > taskIndentLevel;
 }
 
-function getIndentLevel(indent: string): number {
+export function getIndentLevel(indent: string): number {
   return [...indent].reduce((level, character) => level + (character === "\t" ? 1 : 0.25), 0);
 }
 

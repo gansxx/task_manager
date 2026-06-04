@@ -112,23 +112,20 @@ export class TaskSidebarView extends ItemView {
 
   async onOpen(): Promise<void> {
     this.renderShell();
-    void this.refreshTasks();
-    this.registerEvent(this.app.vault.on("modify", () => void this.refreshTasks()));
+    void this.refreshTasks(false);
     this.registerEvent(this.app.vault.on("create", () => {
       this.updateFolderOptions();
       this.renderFilePathSuggestions();
-      void this.refreshTasks();
     }));
     this.registerEvent(this.app.vault.on("delete", () => {
       this.updateFolderOptions();
       this.renderFilePathSuggestions();
-      void this.refreshTasks();
     }));
     this.registerEvent(this.app.workspace.on("file-open", () => {
       if (this.fileScope === "current") {
         this.setFilePathToActiveFile();
       }
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     }));
   }
 
@@ -151,6 +148,14 @@ export class TaskSidebarView extends ItemView {
 
     const header = container.createDiv({ cls: "task-manager-sidebar-header" });
     header.createEl("h3", { text: copy.sidebarTitle });
+    const refreshButton = header.createEl("button", {
+      cls: "task-manager-sidebar-refresh-button",
+      text: copy.sidebarRefreshButton,
+    });
+    refreshButton.type = "button";
+    refreshButton.addEventListener("click", () => {
+      void this.plugin.refreshTasks();
+    });
     this.loadingEl = header.createDiv({ cls: "task-manager-sidebar-loading" });
 
     const filterDetails = container.createEl("details", { cls: "task-manager-sidebar-filter-details" });
@@ -187,7 +192,7 @@ export class TaskSidebarView extends ItemView {
       if (!candidate) {
         this.fileScope = "vault";
         this.selectedFilePath = "";
-        void this.refreshTasks();
+        void this.refreshTasks(false);
         return;
       }
 
@@ -241,7 +246,7 @@ export class TaskSidebarView extends ItemView {
       this.selectedFilePath = "";
       this.setFilePathToActiveFile();
       this.renderFilePathSuggestions();
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     });
     const vaultButton = fileButtonRow.createEl("button", { text: copy.sidebarWholeVaultButton });
     vaultButton.addEventListener("click", () => {
@@ -251,7 +256,7 @@ export class TaskSidebarView extends ItemView {
         this.filePathInputEl.value = "";
       }
       this.renderFilePathSuggestions();
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     });
     const archiveRootButton = fileButtonRow.createEl("button", { text: copy.sidebarArchiveButton });
     archiveRootButton.addEventListener("click", () => {
@@ -275,8 +280,8 @@ export class TaskSidebarView extends ItemView {
       cls: "task-manager-sidebar-date-filter",
     });
     this.endDateInputEl.lang = uiLanguageTag;
-    this.startDateInputEl.addEventListener("change", () => void this.refreshTasks());
-    this.endDateInputEl.addEventListener("change", () => void this.refreshTasks());
+    this.startDateInputEl.addEventListener("change", () => void this.refreshTasks(false));
+    this.endDateInputEl.addEventListener("change", () => void this.refreshTasks(false));
 
     const selectRow = controls.createDiv({ cls: "task-manager-sidebar-select-row is-three-columns" });
 
@@ -295,7 +300,7 @@ export class TaskSidebarView extends ItemView {
     ] as const) {
       this.prioritySelectEl.createEl("option", { value, text: label });
     }
-    this.prioritySelectEl.addEventListener("change", () => void this.refreshTasks());
+    this.prioritySelectEl.addEventListener("change", () => void this.refreshTasks(false));
 
     const archiveColumn = selectRow.createDiv();
     archiveColumn.createEl("label", { text: copy.sidebarArchiveLabel });
@@ -310,7 +315,7 @@ export class TaskSidebarView extends ItemView {
       this.archiveSelectEl.createEl("option", { value, text: label });
     }
     this.archiveSelectEl.value = "active";
-    this.archiveSelectEl.addEventListener("change", () => void this.refreshTasks());
+    this.archiveSelectEl.addEventListener("change", () => void this.refreshTasks(false));
 
     const completionColumn = selectRow.createDiv();
     completionColumn.createEl("label", { text: copy.sidebarCompletionLabel });
@@ -324,24 +329,24 @@ export class TaskSidebarView extends ItemView {
     ] as const) {
       this.completionSelectEl.createEl("option", { value, text: label });
     }
-    this.completionSelectEl.addEventListener("change", () => void this.refreshTasks());
+    this.completionSelectEl.addEventListener("change", () => void this.refreshTasks(false));
 
     const buttonRow = controls.createDiv({ cls: "task-manager-sidebar-actions" });
     const todayButton = buttonRow.createEl("button", { text: copy.sidebarTodayButton });
     todayButton.addEventListener("click", () => {
       const today = formatDateInputValue(new Date());
       this.setDateRange(today, today);
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     });
     const weekButton = buttonRow.createEl("button", { text: copy.sidebarWeekButton });
     weekButton.addEventListener("click", () => {
       this.setDateRange(formatDateInputValue(addDays(new Date(), -6)), formatDateInputValue(new Date()));
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     });
     const monthButton = buttonRow.createEl("button", { text: copy.sidebarMonthButton });
     monthButton.addEventListener("click", () => {
       this.setDateRange(formatDateInputValue(addDays(new Date(), -29)), formatDateInputValue(new Date()));
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     });
     const clearButton = buttonRow.createEl("button", { text: copy.sidebarResetButton });
     clearButton.addEventListener("click", () => {
@@ -357,7 +362,7 @@ export class TaskSidebarView extends ItemView {
         this.completionSelectEl.value = "all";
       }
       this.renderFilePathSuggestions();
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     });
 
     this.statusEl = container.createDiv({ cls: "task-manager-sidebar-status" });
@@ -365,15 +370,23 @@ export class TaskSidebarView extends ItemView {
     this.renderFilePathSuggestions();
   }
 
-  private async refreshTasks(): Promise<void> {
+  refreshNow(showLoading = false): void {
+    void this.refreshTasks(showLoading);
+  }
+
+  private async refreshTasks(scanVault: boolean): Promise<void> {
     if (!this.taskListEl || !this.statusEl) {
       return;
     }
 
     const refreshId = ++this.refreshId;
     const filters = this.getFilters();
-    this.setLoading(true);
-    this.renderTasks(this.getCachedTasks(), filters, true);
+    this.setLoading(scanVault);
+    this.renderTasks(this.getCachedTasks(), filters, scanVault);
+    if (!scanVault) {
+      this.setLoading(false);
+      return;
+    }
 
     const tasks = await collectSidebarTasks(
       this.app,
@@ -852,7 +865,7 @@ export class TaskSidebarView extends ItemView {
               new Notice(copy.sidebarTaskMissingNotice);
               return;
             }
-            void this.refreshTasks();
+            void this.refreshTasks(true);
           }).open();
         }),
     );
@@ -898,7 +911,7 @@ export class TaskSidebarView extends ItemView {
       new Notice(this.copy.sidebarTaskMissingNotice);
       return;
     }
-    void this.refreshTasks();
+    void this.refreshTasks(true);
   }
 
   private async toggleTaskChecked(task: SidebarTask, checked: boolean): Promise<void> {
@@ -907,7 +920,7 @@ export class TaskSidebarView extends ItemView {
       new Notice(this.copy.sidebarTaskMissingNotice);
       return;
     }
-    void this.refreshTasks();
+    void this.refreshTasks(true);
   }
 
   private getUiLanguageTag(): string {
@@ -943,7 +956,7 @@ export class TaskSidebarView extends ItemView {
     }
     this.filePathSuggestionsEl?.hide();
     if (refresh) {
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     }
   }
 
@@ -954,7 +967,7 @@ export class TaskSidebarView extends ItemView {
 
     this.filePathRefreshTimer = window.setTimeout(() => {
       this.filePathRefreshTimer = null;
-      void this.refreshTasks();
+      void this.refreshTasks(false);
     }, 180);
   }
 

@@ -98,6 +98,10 @@
   margin: 0 0 var(--size-4-3);
 }
 
+.task-manager-sidebar-refresh-button {
+  margin: 0 0 var(--size-4-3);
+}
+
 .task-manager-sidebar-loading {
   color: var(--text-accent);
   font-size: var(--font-ui-smaller);

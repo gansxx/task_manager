@@ -1,5 +1,4 @@
-import { App, Editor, EventRef, MarkdownView, Notice, TFile } from "obsidian";
-import { getSettingsCopy } from "../i18n";
+import { App, Editor, EventRef, MarkdownView, TFile } from "obsidian";
 import { TaskEventPipeline } from "../pipeline";
 import type { TaskManagerSettings, TaskPriority } from "../types";
 import { getCurrentDateStamp, getCurrentTimestamp } from "../utils/date";
@@ -9,6 +8,7 @@ import {
   appendDoneToken,
   appendTaskCommentWithTimestamp,
   createStartLine,
+  getIndentLevel,
   getCheckboxCursorOffset,
   getTaskArchiveBlock,
   isEmptyUncheckedTask,
@@ -20,6 +20,12 @@ import {
   wasTaskCompleted,
   wasTaskReopened,
 } from "./task-line";
+
+export interface TaskRefreshResult {
+  scannedFiles: number;
+  updatedFiles: number;
+  archivedTasks: number;
+}
 
 export class TaskMonitorService {
   private readonly snapshots = new Map<string, string[]>();
@@ -35,21 +41,13 @@ export class TaskMonitorService {
 
   start(): void {
     this.eventRefs.push(
-      this.app.workspace.on("editor-change", (editor, info) => {
-        void this.handleEditorChange(editor, info as MarkdownView | null);
-      }),
-    );
-
-    this.eventRefs.push(
       this.app.workspace.on("file-open", (file) => {
         void this.seedSnapshot(file);
       }),
     );
 
     void this.seedSnapshot(this.app.workspace.getActiveFile());
-    if (this.getSettings().preloadVaultOnStartup) {
-      void this.seedSnapshotsForVault();
-    }
+    void this.refreshTasks();
   }
 
   stop(): void {
@@ -93,6 +91,25 @@ export class TaskMonitorService {
 
   async preloadVaultSnapshots(): Promise<void> {
     await this.seedSnapshotsForVault();
+  }
+
+  async refreshTasks(): Promise<TaskRefreshResult> {
+    const files = this.getRefreshTargetFiles();
+    const result: TaskRefreshResult = {
+      scannedFiles: files.length,
+      updatedFiles: 0,
+      archivedTasks: 0,
+    };
+
+    for (const file of files) {
+      const fileResult = await this.refreshFile(file);
+      if (fileResult.updated) {
+        result.updatedFiles += 1;
+      }
+      result.archivedTasks += fileResult.archivedTasks;
+    }
+
+    return result;
   }
 
   async updateTaskPriority(file: TFile, lineNumber: number, priority: TaskPriority): Promise<boolean> {
@@ -235,110 +252,6 @@ export class TaskMonitorService {
     });
   }
 
-  private async handleEditorChange(
-    editor: Editor,
-    info: MarkdownView | null,
-  ): Promise<void> {
-    const file = info?.file;
-    if (!file || !isMarkdownFile(file)) {
-      return;
-    }
-
-    if (!this.isMonitoredFile(file)) {
-      this.updateSnapshotFromEditor(file, editor);
-      return;
-    }
-
-    if (this.isSuppressed(file.path)) {
-      this.updateSnapshotFromEditor(file, editor);
-      return;
-    }
-
-    const currentLines = this.getEditorLines(editor);
-    const previousLines = this.snapshots.get(file.path) ?? currentLines;
-    const changedLineNumbers = this.getChangedLineNumbers(previousLines, currentLines);
-    const date = getCurrentTimestamp(this.getSettings().timestampPrecision);
-
-    for (const lineNumber of changedLineNumbers) {
-      const currentLine = currentLines[lineNumber] ?? "";
-      const previousLine = previousLines[lineNumber] ?? "";
-      if (!isEmptyUncheckedTask(currentLine)) {
-        continue;
-      }
-
-      const parsedTask = parseTaskLine(currentLine);
-      if (!parsedTask) {
-        continue;
-      }
-
-      await this.pipeline.emit({
-        type: "taskCreated",
-        file,
-        editor,
-        lineNumber,
-        previousLine,
-        currentLine,
-        parsedTask,
-        date,
-      });
-    }
-
-    for (const lineNumber of changedLineNumbers) {
-      const currentLine = currentLines[lineNumber] ?? "";
-      const previousLine = previousLines[lineNumber] ?? "";
-      if (!wasTaskReopened(previousLine, currentLine)) {
-        continue;
-      }
-
-      const parsedTask = parseTaskLine(currentLine);
-      if (!parsedTask) {
-        continue;
-      }
-
-      await this.pipeline.emit({
-        type: "taskReopened",
-        file,
-        editor,
-        lineNumber,
-        previousLine,
-        currentLine,
-        parsedTask,
-        date,
-      });
-    }
-
-    for (const lineNumber of [...changedLineNumbers].reverse()) {
-      const currentLine = currentLines[lineNumber] ?? "";
-      const previousLine = previousLines[lineNumber] ?? "";
-      if (!wasTaskCompleted(previousLine, currentLine)) {
-        continue;
-      }
-
-      const parsedTask = parseTaskLine(currentLine);
-      if (!parsedTask) {
-        continue;
-      }
-
-      try {
-        await this.pipeline.emit({
-          type: "taskCompleted",
-          file,
-          editor,
-          lineNumber,
-          previousLine,
-          currentLine,
-          parsedTask,
-          date,
-        });
-      } catch (error) {
-        console.error("Task Manager: failed to archive completed task", error);
-        new Notice(getSettingsCopy(this.getSettings()).archiveFailureNotice);
-      }
-    }
-
-    this.updateSnapshotFromEditor(file, editor);
-  }
-
   private isMonitoredFile(file: TFile): boolean {
     const watchedFolder = this.getSettings().watchedFolder;
     if (!watchedFolder.trim()) {
@@ -354,22 +267,6 @@ export class TaskMonitorService {
 
   private getEditorLines(editor: Editor): string[] {
     return editor.getValue().split("\n");
-  }
-
-  private getChangedLineNumbers(
-    previousLines: string[],
-    currentLines: string[],
-  ): number[] {
-    const lineCount = Math.max(previousLines.length, currentLines.length);
-    const changedLineNumbers: number[] = [];
-
-    for (let lineNumber = 0; lineNumber < lineCount; lineNumber += 1) {
-      if ((previousLines[lineNumber] ?? "") !== (currentLines[lineNumber] ?? "")) {
-        changedLineNumbers.push(lineNumber);
-      }
-    }
-
-    return changedLineNumbers;
   }
 
   private async seedSnapshot(file: TFile | null): Promise<void> {
@@ -389,6 +286,136 @@ export class TaskMonitorService {
         this.snapshots.set(file.path, content.split("\n"));
       }),
     );
+  }
+
+  private getRefreshTargetFiles(): TFile[] {
+    return this.app.vault
+      .getMarkdownFiles()
+      .filter((file) => this.isRefreshTargetFile(file));
+  }
+
+  private isRefreshTargetFile(file: TFile): boolean {
+    if (!isMarkdownFile(file) || this.isArchiveFile(file)) {
+      return false;
+    }
+
+    const watchedFolder = this.getSettings().watchedFolder.trim();
+    if (watchedFolder) {
+      return isFileInsideFolder(file, watchedFolder);
+    }
+
+    return this.app.workspace.getActiveFile()?.path === file.path;
+  }
+
+  private isArchiveFile(file: TFile): boolean {
+    const archiveRoot = this.getSettings().archiveRootFolder.trim();
+    return Boolean(archiveRoot && isFileInsideFolder(file, archiveRoot));
+  }
+
+  private async refreshFile(file: TFile): Promise<{ updated: boolean; archivedTasks: number }> {
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (activeView?.file?.path === file.path && activeView.editor) {
+      return this.refreshEditorFile(file, activeView.editor);
+    }
+
+    const content = await this.app.vault.cachedRead(file);
+    const lines = content.split("\n");
+    const result = await this.refreshTaskLines(file, lines);
+    if (result.updated) {
+      await this.app.vault.modify(file, lines.join("\n"));
+    }
+
+    this.snapshots.set(file.path, lines);
+    return result;
+  }
+
+  private async refreshEditorFile(
+    file: TFile,
+    editor: Editor,
+  ): Promise<{ updated: boolean; archivedTasks: number }> {
+    const lines = this.getEditorLines(editor);
+    const result = await this.refreshTaskLines(file, lines);
+    if (!result.updated) {
+      this.snapshots.set(file.path, lines);
+      return result;
+    }
+
+    this.runWithSuppressedFile(file.path, () => {
+      editor.setValue(lines.join("\n"));
+    });
+    this.snapshots.set(file.path, lines);
+    return result;
+  }
+
+  private async refreshTaskLines(
+    file: TFile,
+    lines: string[],
+  ): Promise<{ updated: boolean; archivedTasks: number }> {
+    const date = getCurrentTimestamp(this.getSettings().timestampPrecision);
+    let updated = false;
+    let archivedTasks = 0;
+
+    for (let lineNumber = 0; lineNumber < lines.length; lineNumber += 1) {
+      const line = lines[lineNumber] ?? "";
+      const parsed = parseTaskLine(line);
+
+      if (isEmptyUncheckedTask(line)) {
+        const nextLine = createStartLine(
+          line,
+          this.formatToken(this.getSettings().startTokenFormat, date),
+        );
+        if (nextLine !== line) {
+          lines[lineNumber] = nextLine;
+          updated = true;
+        }
+        continue;
+      }
+
+      if (!parsed) {
+        continue;
+      }
+
+      if (!parsed.checked && parsed.doneToken) {
+        const nextLine = removeDoneToken(line);
+        if (nextLine !== line) {
+          lines[lineNumber] = nextLine;
+          updated = true;
+        }
+        continue;
+      }
+
+      if (!parsed.checked) {
+        continue;
+      }
+
+      if (!parsed.doneToken) {
+        const nextLine = appendDoneToken(
+          line,
+          this.formatToken(this.getSettings().doneTokenFormat, date),
+        );
+        if (nextLine !== line) {
+          lines[lineNumber] = nextLine;
+          updated = true;
+        }
+      }
+
+      if (!this.getSettings().immediateArchiveEnabled) {
+        continue;
+      }
+
+      const archiveBlock = getTaskArchiveBlock(lines, lineNumber);
+      if (!archiveBlock) {
+        continue;
+      }
+
+      await this.archiveService.archiveCompletedTask(file, archiveBlock.text, date);
+      lines.splice(lineNumber, archiveBlock.lineCount);
+      lineNumber -= 1;
+      archivedTasks += 1;
+      updated = true;
+    }
+
+    return { updated, archivedTasks };
   }
 
   private async updateTaskLineContent(
@@ -470,9 +497,8 @@ export class TaskMonitorService {
     editor: Editor,
   ): Promise<ArchiveBatchResult> {
     const lines = this.getEditorLines(editor);
-    const taskEntries = lines
-      .map((lineText, lineNumber) => ({ lineText, lineNumber }))
-      .filter(({ lineText }) => isTaskArchivable(lineText));
+    const taskEntries = getStandaloneArchivableLineNumbers(lines)
+      .map((lineNumber) => ({ lineText: lines[lineNumber] ?? "", lineNumber }));
 
     if (taskEntries.length === 0) {
       return { count: 0, archivePaths: [] };
@@ -528,4 +554,36 @@ type ArchiveLineResult = ArchiveWriteResult;
 export interface ArchiveBatchResult {
   count: number;
   archivePaths: string[];
+}
+
+function getStandaloneArchivableLineNumbers(lines: string[]): number[] {
+  const lineNumbers: number[] = [];
+  const checkedAncestorIndents: number[] = [];
+
+  lines.forEach((line, lineNumber) => {
+    const parsed = parseTaskLine(line);
+    if (!parsed) {
+      return;
+    }
+
+    const indentLevel = getIndentLevel(parsed.indent);
+    while (
+      checkedAncestorIndents.length > 0 &&
+      checkedAncestorIndents[checkedAncestorIndents.length - 1] >= indentLevel
+    ) {
+      checkedAncestorIndents.pop();
+    }
+
+    if (!parsed.checked) {
+      return;
+    }
+
+    if (checkedAncestorIndents.length === 0) {
+      lineNumbers.push(lineNumber);
+    }
+
+    checkedAncestorIndents.push(indentLevel);
+  });
+
+  return lineNumbers;
 }
