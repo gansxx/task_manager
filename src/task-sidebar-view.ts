@@ -85,9 +85,11 @@ export class TaskSidebarView extends ItemView {
   private taskListEl?: HTMLElement;
   private statusEl?: HTMLElement;
   private loadingEl?: HTMLElement;
+  private refreshButtonEl?: HTMLButtonElement;
   private fileScope: FileScopeFilter = "current";
   private refreshId = 0;
   private filePathRefreshTimer: number | null = null;
+  private isManualRefreshRunning = false;
   private readonly collapsedTaskIds = new Set<string>();
   private filePathOptions: Array<{ value: string; type: FilePathOptionType }> = [];
   private selectedFilePath = "";
@@ -154,17 +156,23 @@ export class TaskSidebarView extends ItemView {
     const filterDetails = container.createEl("details", { cls: "task-manager-sidebar-filter-details" });
     filterDetails.open = true;
     const filterSummary = filterDetails.createEl("summary");
-    filterSummary.createSpan({ text: copy.sidebarFiltersSummary });
-    const refreshButton = filterSummary.createEl("button", {
+    filterSummary.createSpan({
+      cls: "task-manager-sidebar-summary-label",
+      text: copy.sidebarFiltersSummary,
+    });
+    this.refreshButtonEl = filterSummary.createEl("button", {
       cls: "task-manager-sidebar-refresh-button",
     });
-    refreshButton.type = "button";
-    refreshButton.title = copy.refreshTasksRibbonTitle;
-    refreshButton.setAttr("aria-label", copy.refreshTasksRibbonTitle);
-    setIcon(refreshButton, "refresh-cw");
-    refreshButton.addEventListener("click", (event) => {
+    this.refreshButtonEl.type = "button";
+    this.refreshButtonEl.title = copy.refreshTasksRibbonTitle;
+    this.refreshButtonEl.setAttr("aria-label", copy.refreshTasksRibbonTitle);
+    setIcon(this.refreshButtonEl, "refresh-cw");
+    this.refreshButtonEl.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (this.isManualRefreshRunning) {
+        return;
+      }
       void this.plugin.refreshTasks();
     });
     const controls = filterDetails.createDiv({ cls: "task-manager-sidebar-controls" });
@@ -378,6 +386,15 @@ export class TaskSidebarView extends ItemView {
 
   refreshNow(showLoading = false): void {
     void this.refreshTasks(showLoading);
+  }
+
+  setManualRefreshState(isRefreshing: boolean): void {
+    this.isManualRefreshRunning = isRefreshing;
+    this.refreshButtonEl?.toggleClass("is-loading", isRefreshing);
+    if (this.refreshButtonEl) {
+      this.refreshButtonEl.disabled = isRefreshing;
+      this.refreshButtonEl.setAttr("aria-busy", isRefreshing ? "true" : "false");
+    }
   }
 
   private async refreshTasks(scanVault: boolean): Promise<void> {

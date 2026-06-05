@@ -16,6 +16,7 @@ export default class TaskManagerPlugin extends Plugin {
   private pipeline!: TaskEventPipeline;
   private archiveService!: TaskArchiveService;
   private monitorService!: TaskMonitorService;
+  private refreshTasksPromise: Promise<void> | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -230,26 +231,38 @@ export default class TaskManagerPlugin extends Plugin {
   }
 
   async refreshTasks(): Promise<void> {
-    try {
-      const result = await this.monitorService.refreshTasks();
-      await preloadSidebarTaskCache(this.app);
-      for (const leaf of this.app.workspace.getLeavesOfType(TASK_SIDEBAR_VIEW_TYPE)) {
-        if (leaf.view instanceof TaskSidebarView) {
-          leaf.view.refreshNow(false);
-        }
-      }
-      new Notice(
-        this.copy.taskRefreshSuccessNotice(
-          result.scannedFiles,
-          result.updatedFiles,
-          result.archivedTasks,
-        ),
-        10000,
-      );
-    } catch (error) {
-      console.error("Task Manager: failed to refresh tasks", error);
-      new Notice(this.copy.taskRefreshFailureNotice);
+    if (this.refreshTasksPromise) {
+      return this.refreshTasksPromise;
     }
+
+    this.setSidebarRefreshState(true);
+    this.refreshTasksPromise = (async () => {
+      try {
+        const result = await this.monitorService.refreshTasks();
+        await preloadSidebarTaskCache(this.app);
+        for (const leaf of this.app.workspace.getLeavesOfType(TASK_SIDEBAR_VIEW_TYPE)) {
+          if (leaf.view instanceof TaskSidebarView) {
+            leaf.view.refreshNow(false);
+          }
+        }
+        new Notice(
+          this.copy.taskRefreshSuccessNotice(
+            result.scannedFiles,
+            result.updatedFiles,
+            result.archivedTasks,
+          ),
+          10000,
+        );
+      } catch (error) {
+        console.error("Task Manager: failed to refresh tasks", error);
+        new Notice(this.copy.taskRefreshFailureNotice);
+      } finally {
+        this.setSidebarRefreshState(false);
+        this.refreshTasksPromise = null;
+      }
+    })();
+
+    return this.refreshTasksPromise;
   }
 
   private async activateTaskSidebar(): Promise<void> {
@@ -263,6 +276,14 @@ export default class TaskManagerPlugin extends Plugin {
     await leaf?.setViewState({ type: TASK_SIDEBAR_VIEW_TYPE, active: true });
     if (leaf) {
       this.app.workspace.setActiveLeaf(leaf, { focus: true });
+    }
+  }
+
+  private setSidebarRefreshState(isRefreshing: boolean): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(TASK_SIDEBAR_VIEW_TYPE)) {
+      if (leaf.view instanceof TaskSidebarView) {
+        leaf.view.setManualRefreshState(isRefreshing);
+      }
     }
   }
 

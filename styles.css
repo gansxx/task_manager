@@ -239,6 +239,27 @@
   list-style-position: inside;
 }
 
+.task-manager-sidebar-filter-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.task-manager-sidebar-summary-label {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--size-2-2);
+}
+
+.task-manager-sidebar-summary-label::before {
+  color: var(--text-muted);
+  content: "▸";
+  font-size: var(--font-ui-smaller);
+  transition: transform 120ms ease;
+}
+
+.task-manager-sidebar-filter-details[open] .task-manager-sidebar-summary-label::before {
+  transform: rotate(90deg);
+}
+
 .task-manager-sidebar-refresh-button {
   align-items: center;
   background: transparent;
@@ -253,9 +274,33 @@
   width: var(--size-4-5);
 }
 
+.task-manager-sidebar-refresh-button svg {
+  height: 1rem;
+  width: 1rem;
+}
+
 .task-manager-sidebar-refresh-button:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
+}
+
+.task-manager-sidebar-refresh-button:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
+
+.task-manager-sidebar-refresh-button.is-loading svg {
+  animation: task-manager-spin 0.85s linear infinite;
+}
+
+@keyframes task-manager-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .task-manager-sidebar-task-row {
