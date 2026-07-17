@@ -8,6 +8,7 @@ import { preloadSidebarTaskCache, TASK_SIDEBAR_VIEW_TYPE, TaskSidebarView } from
 import { TaskArchiveService } from "./tasks/archive-service";
 import { isTaskArchivable, parseTaskLine, setTaskPriority } from "./tasks/task-line";
 import { TaskMonitorService } from "./tasks/task-monitor-service";
+import { TASK_ANALYTICS_VIEW_TYPE, TaskAnalyticsView } from "./task-analytics-view";
 import type { TaskManagerSettings, TaskPriority } from "./types";
 
 export default class TaskManagerPlugin extends Plugin {
@@ -40,10 +41,15 @@ export default class TaskManagerPlugin extends Plugin {
       TASK_SIDEBAR_VIEW_TYPE,
       (leaf) => new TaskSidebarView(leaf, this),
     );
+    this.registerView(
+      TASK_ANALYTICS_VIEW_TYPE,
+      (leaf) => new TaskAnalyticsView(leaf, this),
+    );
     this.registerArchiveUi();
     this.registerRefreshUi();
     this.registerPriorityUi();
     this.registerTaskSidebarUi();
+    this.registerTaskAnalyticsUi();
 
     this.addSettingTab(
       new TaskManagerSettingTab(this.app, this, async () => {
@@ -209,6 +215,32 @@ export default class TaskManagerPlugin extends Plugin {
     });
   }
 
+  private registerTaskAnalyticsUi(): void {
+    this.addRibbonIcon("bar-chart-3", "Open task completion analytics", () => {
+      void this.activateTaskAnalytics();
+    });
+    this.addCommand({
+      id: "open-task-completion-analytics",
+      name: "Open task completion analytics",
+      hotkeys: [{ modifiers: ["Mod", "Shift"], key: "Y" }],
+      callback: () => void this.activateTaskAnalytics(),
+    });
+  }
+
+  private async activateTaskAnalytics(): Promise<void> {
+    try {
+      for (const existingLeaf of this.app.workspace.getLeavesOfType(TASK_ANALYTICS_VIEW_TYPE)) {
+        existingLeaf.detach();
+      }
+      const leaf = this.app.workspace.getLeaf("tab");
+      await leaf.setViewState({ type: TASK_ANALYTICS_VIEW_TYPE, active: true });
+      await this.app.workspace.revealLeaf(leaf);
+    } catch (error) {
+      console.error("Task Manager: failed to open analytics view", error);
+      new Notice(`Task analytics failed: ${error instanceof Error ? error.message : String(error)}`, 10000);
+    }
+  }
+
   private setCurrentTaskPriority(editor: Editor, priority: TaskPriority): void {
     const lineNumber = editor.getCursor().line;
     const lineText = editor.getLine(lineNumber);
@@ -272,7 +304,7 @@ export default class TaskManagerPlugin extends Plugin {
       return;
     }
 
-    const leaf = this.app.workspace.getRightLeaf(false);
+    const leaf = this.app.workspace.getRightLeaf(true);
     await leaf?.setViewState({ type: TASK_SIDEBAR_VIEW_TYPE, active: true });
     if (leaf) {
       this.app.workspace.setActiveLeaf(leaf, { focus: true });

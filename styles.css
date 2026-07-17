@@ -428,3 +428,91 @@
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
+
+.task-manager-analytics {
+  padding: var(--size-4-3);
+}
+
+.task-manager-analytics h3 {
+  margin: 0 0 var(--size-2-2);
+}
+
+.task-manager-analytics-refresh {
+  margin-bottom: var(--size-4-3);
+}
+
+.task-manager-analytics-stats {
+  display: grid;
+  gap: var(--size-2-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.task-manager-analytics-metric,
+.task-manager-analytics-chart-section {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: var(--size-3-2);
+}
+
+.task-manager-analytics-metric-label,
+.task-manager-analytics-metric-hint,
+.task-manager-analytics-subtitle {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.task-manager-analytics-metric-value {
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+  margin: var(--size-2-1) 0;
+}
+
+.task-manager-analytics-chart-section {
+  margin-top: var(--size-4-3);
+}
+
+.task-manager-analytics-chart-section h4 {
+  margin: 0 0 var(--size-2-1);
+}
+
+.task-manager-analytics-chart {
+  margin-top: var(--size-4-2);
+  overflow-x: auto;
+}
+
+.task-manager-analytics-chart svg {
+  display: block;
+  min-width: 420px;
+  width: 100%;
+}
+
+.task-manager-analytics-grid {
+  stroke: var(--background-modifier-border);
+  stroke-width: 1;
+}
+
+.task-manager-analytics-line {
+  fill: none;
+  stroke: var(--interactive-accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.task-manager-analytics-point {
+  fill: var(--interactive-accent);
+  stroke: var(--background-primary);
+  stroke-width: 2;
+}
+
+.task-manager-analytics-axis-label {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+@media (max-width: 420px) {
+  .task-manager-analytics-stats {
+    grid-template-columns: 1fr;
+  }
+}
