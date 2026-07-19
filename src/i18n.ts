@@ -2,6 +2,7 @@ import type {
   TaskManagerLanguageMode,
   TaskManagerSettings,
 } from "./types";
+import { getLanguage } from "obsidian";
 
 export const GITHUB_REPO_URL = "https://github.com/gansxx/task_manager";
 
@@ -394,7 +395,7 @@ export function resolveLocale(
 
   try {
     const language =
-      window.localStorage.getItem("language")
+      getLanguage()
       ?? activeDocument.documentElement.lang
       ?? window.navigator.language
       ?? "en";

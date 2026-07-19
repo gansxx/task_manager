@@ -425,8 +425,7 @@
 }
 
 .task-manager-sidebar-task.is-completed .task-manager-sidebar-task-title {
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
+  opacity: 0.64;
 }
 
 .task-manager-analytics {

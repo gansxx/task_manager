@@ -23,6 +23,55 @@ export class TaskManagerSettingTab extends PluginSettingTab {
     super(app, plugin);
   }
 
+  // Obsidian 1.13+ uses these definitions for settings search and persistence.
+  // Older supported versions continue to render the imperative display() below.
+  getSettingDefinitions(): Array<Record<string, unknown>> {
+    const copy = getSettingsCopy(this.plugin.settings);
+    return [
+      {
+        name: copy.languageName,
+        desc: copy.languageDesc,
+        control: {
+          type: "dropdown",
+          key: "languageMode",
+          defaultValue: DEFAULT_SETTINGS.languageMode,
+          options: { auto: copy.languageAuto, zh: copy.languageChinese, en: copy.languageEnglish },
+        },
+      },
+      {
+        name: copy.watchedFolderName,
+        desc: copy.watchedFolderDesc,
+        control: { type: "text", key: "watchedFolder", placeholder: copy.watchedFolderPlaceholder },
+      },
+      {
+        name: copy.startTokenFormatName,
+        desc: copy.startTokenFormatDesc,
+        control: { type: "text", key: "startTokenFormat" },
+      },
+      {
+        name: copy.doneTokenFormatName,
+        desc: copy.doneTokenFormatDesc,
+        control: { type: "text", key: "doneTokenFormat" },
+      },
+      {
+        name: copy.timestampPrecisionName,
+        desc: copy.timestampPrecisionDesc,
+        control: {
+          type: "dropdown",
+          key: "timestampPrecision",
+          defaultValue: DEFAULT_SETTINGS.timestampPrecision,
+          options: {
+            date: copy.timestampPrecisionDate,
+            minute: copy.timestampPrecisionMinute,
+            second: copy.timestampPrecisionSecond,
+          },
+        },
+      },
+      { name: copy.hideMetadataTokensName, desc: copy.hideMetadataTokensDesc, control: { type: "toggle", key: "hideMetadataTokens" } },
+      { name: copy.preloadVaultOnStartupName, desc: copy.preloadVaultOnStartupDesc, control: { type: "toggle", key: "preloadVaultOnStartup" } },
+    ];
+  }
+
   display(): void {
     const { containerEl } = this;
     const copy = getSettingsCopy(this.plugin.settings);

@@ -127,14 +127,14 @@ export default class TaskManagerPlugin extends Plugin {
         window.setTimeout(() => {
           const menus = Array.from(activeDocument.querySelectorAll(".menu"));
           const latestMenu = menus[menus.length - 1];
-          if (!(latestMenu instanceof HTMLElement)) {
+          if (!latestMenu?.instanceOf(HTMLElement)) {
             return;
           }
 
           const target = Array.from(latestMenu.querySelectorAll(".menu-item")).find((item) =>
             item.textContent?.trim().includes(this.copy.sidebarMenuPriorityParent),
           );
-          if (!(target instanceof HTMLElement)) {
+          if (!target?.instanceOf(HTMLElement)) {
             return;
           }
 
@@ -193,7 +193,6 @@ export default class TaskManagerPlugin extends Plugin {
     this.addCommand({
       id: "open-task-completion-analytics",
       name: "Open task completion analytics",
-      hotkeys: [{ modifiers: ["Mod", "Shift"], key: "Y" }],
       callback: () => void this.activateTaskAnalytics(),
     });
   }

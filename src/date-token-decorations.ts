@@ -127,7 +127,7 @@ function replaceTextNodeTokens(textNode: Text): void {
     return;
   }
 
-  const fragment = activeDocument.createDocumentFragment();
+  const fragment = createFragment();
   let index = 0;
 
   for (const match of matches) {
@@ -136,9 +136,10 @@ function replaceTextNodeTokens(textNode: Text): void {
       fragment.append(text.slice(index, start));
     }
 
-    const tokenEl = activeDocument.createElement("span");
-    tokenEl.className = `${TOKEN_CLASS} ${getTokenVariantClass(match)}`;
-    tokenEl.textContent = match[0];
+    const tokenEl = createEl("span", {
+      cls: `${TOKEN_CLASS} ${getTokenVariantClass(match)}`,
+      text: match[0],
+    });
     fragment.append(tokenEl);
 
     index = start + match[0].length;

@@ -977,7 +977,7 @@ export class TaskSidebarView extends ItemView {
     window.setTimeout(() => {
       const menus = Array.from(activeDocument.querySelectorAll(".menu"));
       const latestMenu = menus[menus.length - 1];
-      if (!(latestMenu instanceof HTMLElement)) {
+      if (!latestMenu?.instanceOf(HTMLElement)) {
         return;
       }
 
@@ -985,7 +985,7 @@ export class TaskSidebarView extends ItemView {
       const target = items.find((item) =>
         item.textContent?.trim().includes(title),
       );
-      if (!(target instanceof HTMLElement)) {
+      if (!target?.instanceOf(HTMLElement)) {
         return;
       }
 
@@ -1174,7 +1174,7 @@ function getFilePathMatchScore(value: string, query: string): number | null {
     return 3;
   }
 
-  const queryParts = normalizedQuery.split(/[\/\s]+/).filter(Boolean);
+  const queryParts = normalizedQuery.split(/[/\s]+/).filter(Boolean);
   if (queryParts.length > 1 && queryParts.every((part) => normalizedValue.includes(part))) {
     return 4;
   }
