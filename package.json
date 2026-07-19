@@ -1,17 +1,20 @@
 {
   "name": "task-manager",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "the plugin to manage tasks",
   "scripts": {
     "dev": "node esbuild.config.mjs --watch",
-    "build": "node esbuild.config.mjs production"
+    "build": "node esbuild.config.mjs production",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@codemirror/state": "6.5.0",
-    "@codemirror/view": "6.38.6"
+    "@codemirror/view": "6.38.6",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
+    "@types/sql.js": "^1.4.9",
     "esbuild": "^0.25.5",
     "obsidian": "^1.8.10",
     "typescript": "^5.8.3"

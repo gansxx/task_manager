@@ -62,7 +62,7 @@ jobs:
 
           rm -rf release "$PACKAGE_ZIP"
           mkdir -p "$PACKAGE_DIR"
-          cp main.js manifest.json styles.css "$PACKAGE_DIR/"
+          cp main.js manifest.json styles.css sql-wasm.wasm "$PACKAGE_DIR/"
           (cd release && zip -r "../$PACKAGE_ZIP" "$PLUGIN_ID")
 
           echo "package_dir=$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
@@ -88,6 +88,7 @@ jobs:
               manifest.json \
               main.js \
               styles.css \
+              sql-wasm.wasm \
               "${{ steps.manual_package.outputs.package_zip }}" \
               --clobber
           else
@@ -95,6 +96,7 @@ jobs:
               manifest.json \
               main.js \
               styles.css \
+              sql-wasm.wasm \
               "${{ steps.manual_package.outputs.package_zip }}" \
               --title "$TAG" \
               --notes "$NOTES"

@@ -42,6 +42,7 @@ interface SettingsCopy {
   taskRefreshSuccessNotice: (scannedFiles: number, updatedFiles: number, archivedTasks: number) => string;
   taskRefreshFailureNotice: string;
   archiveFailureNotice: string;
+  completionStorageFailureNotice: string;
   archiveCurrentFileRibbonTitle: string;
   archiveCurrentTaskMenuLabel: string;
   archiveMissingFileNotice: string;
@@ -169,6 +170,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
       `已刷新任务：扫描 ${scannedFiles} 个文件，更新 ${updatedFiles} 个文件，归档 ${archivedTasks} 个任务。`,
     taskRefreshFailureNotice: "Task Manager 刷新任务时失败。",
     archiveFailureNotice: "Task Manager 归档已完成任务时失败。",
+    completionStorageFailureNotice: "Task Manager 保存已完成任务到 SQLite 时失败。",
     archiveCurrentFileRibbonTitle: "归档当前页面中的全部任务",
     archiveCurrentTaskMenuLabel: "归档当前任务",
     archiveMissingFileNotice: "当前没有可归档的 Markdown 文件。",
@@ -294,6 +296,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
       `Refreshed tasks: scanned ${scannedFiles} file(s), updated ${updatedFiles} file(s), archived ${archivedTasks} task(s).`,
     taskRefreshFailureNotice: "Task Manager could not refresh tasks.",
     archiveFailureNotice: "Task Manager could not archive the completed task.",
+    completionStorageFailureNotice: "Task Manager could not save the completed task to SQLite.",
     archiveCurrentFileRibbonTitle: "Archive all tasks in the current note",
     archiveCurrentTaskMenuLabel: "Archive current task",
     archiveMissingFileNotice: "There is no active Markdown file to archive.",

@@ -6,14 +6,11 @@ export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
 
 export interface TaskManagerSettings {
   watchedFolder: string;
-  archiveRootFolder: string;
   favoritePaths: string[];
   startTokenFormat: string;
   doneTokenFormat: string;
   timestampPrecision: TimestampPrecision;
   hideMetadataTokens: boolean;
-  skipArchiveConfirmation: boolean;
-  immediateArchiveEnabled: boolean;
   preloadVaultOnStartup: boolean;
   languageMode: TaskManagerLanguageMode;
 }

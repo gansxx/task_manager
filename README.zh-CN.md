@@ -3,7 +3,7 @@
 <img src="./assets/media/marker_pro.png" width="800">
 </p>
 <p align="center">
-<strong>一款用于 Obsidian 的任务管理插件：自动补全任务时间戳、优先级、跨笔记筛选和已完成任务归档。</strong>
+<strong>一款用于 Obsidian 桌面端的任务管理插件：自动补全任务时间戳、优先级、跨笔记筛选，并将已完成任务保存为 SQLite 结构化数据。</strong>
 </p>
 
 ---
@@ -30,8 +30,7 @@
 - 打开 **Task Manager** 侧边栏，可以按日期区间、优先级和文件路径筛选监听范围内的任务，并将常用路径收藏到下拉框中快速复用。
 ![任务筛选侧边栏](./assets/media/task_filter.png)
 ---
-- 如果你希望把已完成任务移出当前工作页面，可以开启可选归档功能。
-![归档演示](./assets/media/archieve.png)
+- 已完成任务保留在原笔记并带有 `@done(...)` 标记；结构化记录保存到 `.obsidian/plugins/task-timestamp-marker/completed-tasks.sqlite`，供分析视图与后续单独分析使用。
 ---
 
 <p align="center">

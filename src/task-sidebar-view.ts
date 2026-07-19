@@ -26,7 +26,6 @@ export const TASK_SIDEBAR_VIEW_TYPE = "task-manager-sidebar-view";
 
 type PriorityFilter = TaskPriority | "all";
 type FileScopeFilter = "current" | "path" | "vault";
-type ArchiveFilter = "all" | "active" | "archived";
 type CompletionFilter = "all" | "open" | "done";
 type FilePathOptionType = "folder" | "file";
 
@@ -40,7 +39,6 @@ interface SidebarTask {
   doneTimestamp: string | null;
   durationText: string | null;
   priority: TaskPriority;
-  archived: boolean;
   indentLevel: number;
   parentLineNumber: number | null;
   childLineNumbers: number[];
@@ -60,7 +58,6 @@ interface SidebarFilters {
   startDate: string;
   endDate: string;
   priority: PriorityFilter;
-  archive: ArchiveFilter;
   completion: CompletionFilter;
   filePath: string;
   fileScope: FileScopeFilter;
@@ -77,7 +74,6 @@ export class TaskSidebarView extends ItemView {
   private startDateInputEl?: HTMLInputElement;
   private endDateInputEl?: HTMLInputElement;
   private prioritySelectEl?: HTMLSelectElement;
-  private archiveSelectEl?: HTMLSelectElement;
   private completionSelectEl?: HTMLSelectElement;
   private filePathInputEl?: HTMLInputElement;
   private favoritePathSelectEl?: HTMLSelectElement;
@@ -272,13 +268,6 @@ export class TaskSidebarView extends ItemView {
       this.renderFilePathSuggestions();
       void this.refreshTasks(false);
     });
-    const archiveRootButton = fileButtonRow.createEl("button", { text: copy.sidebarArchiveButton });
-    archiveRootButton.addEventListener("click", () => {
-      this.applyFilePathSelection(this.plugin.settings.archiveRootFolder);
-      if (this.archiveSelectEl) {
-        this.archiveSelectEl.value = "archived";
-      }
-    });
     this.initializeFileFilter();
 
     controls.createEl("label", { text: copy.sidebarDateRangeLabel });
@@ -297,7 +286,7 @@ export class TaskSidebarView extends ItemView {
     this.startDateInputEl.addEventListener("change", () => void this.refreshTasks(false));
     this.endDateInputEl.addEventListener("change", () => void this.refreshTasks(false));
 
-    const selectRow = controls.createDiv({ cls: "task-manager-sidebar-select-row is-three-columns" });
+    const selectRow = controls.createDiv({ cls: "task-manager-sidebar-select-row" });
 
     const priorityColumn = selectRow.createDiv();
     priorityColumn.createEl("label", { text: copy.sidebarPriorityLabel });
@@ -315,21 +304,6 @@ export class TaskSidebarView extends ItemView {
       this.prioritySelectEl.createEl("option", { value, text: label });
     }
     this.prioritySelectEl.addEventListener("change", () => void this.refreshTasks(false));
-
-    const archiveColumn = selectRow.createDiv();
-    archiveColumn.createEl("label", { text: copy.sidebarArchiveLabel });
-    this.archiveSelectEl = archiveColumn.createEl("select", {
-      cls: "task-manager-sidebar-archive-filter",
-    });
-    for (const [value, label] of [
-      ["all", copy.sidebarArchiveAll],
-      ["active", copy.sidebarArchiveActive],
-      ["archived", copy.sidebarArchiveArchived],
-    ] as const) {
-      this.archiveSelectEl.createEl("option", { value, text: label });
-    }
-    this.archiveSelectEl.value = "active";
-    this.archiveSelectEl.addEventListener("change", () => void this.refreshTasks(false));
 
     const completionColumn = selectRow.createDiv();
     completionColumn.createEl("label", { text: copy.sidebarCompletionLabel });
@@ -368,9 +342,6 @@ export class TaskSidebarView extends ItemView {
       this.initializeFileFilter();
       if (this.prioritySelectEl) {
         this.prioritySelectEl.value = "all";
-      }
-      if (this.archiveSelectEl) {
-        this.archiveSelectEl.value = "active";
       }
       if (this.completionSelectEl) {
         this.completionSelectEl.value = "all";
@@ -475,7 +446,7 @@ export class TaskSidebarView extends ItemView {
     const hasChildren = childTasks.length > 0 || task.comments.length > 0;
     const collapsed = this.collapsedTaskIds.has(taskId);
     const item = container.createDiv({
-      cls: `task-manager-sidebar-task is-priority-${task.priority}${task.archived ? " is-archived" : ""}${task.checked ? " is-completed" : " is-open"}`,
+      cls: `task-manager-sidebar-task is-priority-${task.priority}${task.checked ? " is-completed" : " is-open"}`,
     });
     item.style.setProperty("--task-manager-task-depth", String(depth));
 
@@ -525,11 +496,8 @@ export class TaskSidebarView extends ItemView {
     if (task.priority !== "none") {
       meta.createSpan({ text: ` · ${this.getPriorityLabel(task.priority)}` });
     }
-    if (task.archived) {
-      meta.createSpan({ text: ` · ${copy.sidebarArchivedBadge}` });
-      if (task.durationText) {
-        meta.createSpan({ text: ` · ${copy.sidebarDurationLabel(task.durationText)}` });
-      }
+    if (task.durationText) {
+      meta.createSpan({ text: ` · ${copy.sidebarDurationLabel(task.durationText)}` });
     }
 
     item.addEventListener("click", () => void this.openTask(task));
@@ -584,7 +552,6 @@ export class TaskSidebarView extends ItemView {
       startDate: this.startDateInputEl?.value.trim() ?? "",
       endDate: this.endDateInputEl?.value.trim() ?? "",
       priority: (this.prioritySelectEl?.value as PriorityFilter | undefined) ?? "all",
-      archive: (this.archiveSelectEl?.value as ArchiveFilter | undefined) ?? "active",
       completion: (this.completionSelectEl?.value as CompletionFilter | undefined) ?? "all",
       filePath: this.selectedFilePath,
       fileScope: this.fileScope,
@@ -593,14 +560,6 @@ export class TaskSidebarView extends ItemView {
 
   private matchesFilters(task: SidebarTask, filters: SidebarFilters): boolean {
     if (!this.matchesFileFilter(task.file, filters)) {
-      return false;
-    }
-
-    if (filters.archive === "archived" && !task.archived) {
-      return false;
-    }
-
-    if (filters.archive === "active" && task.archived) {
       return false;
     }
 
@@ -659,12 +618,6 @@ export class TaskSidebarView extends ItemView {
       descriptions.push(copy.sidebarStatusCurrentFile);
     } else if (filters.filePath) {
       descriptions.push(copy.sidebarStatusInPath(filters.filePath));
-    }
-
-    if (filters.archive === "archived") {
-      descriptions.push(copy.sidebarStatusArchived);
-    } else if (filters.archive === "active") {
-      descriptions.push(copy.sidebarStatusNotArchived);
     }
 
     if (filters.completion !== "all") {
@@ -1240,7 +1193,6 @@ function toCachedSidebarTask(task: SidebarTask): CachedSidebarTask {
     doneTimestamp: task.doneTimestamp,
     durationText: task.durationText,
     priority: task.priority,
-    archived: task.archived,
     indentLevel: task.indentLevel,
     parentLineNumber: task.parentLineNumber,
     childLineNumbers: task.childLineNumbers,
@@ -1295,7 +1247,6 @@ async function collectSidebarTasks(
           ? formatDuration(tokenDates.start, tokenDates.done)
           : null,
         priority: parsedTask.priority,
-        archived: /@archived\([^)]+\)/.test(parsedTask.body),
         indentLevel,
         parentLineNumber: parent?.lineNumber ?? null,
         childLineNumbers: [],
@@ -1308,11 +1259,6 @@ async function collectSidebarTasks(
   }
 
   return tasks.sort((a, b) => {
-    const archiveCompare = Number(a.archived) - Number(b.archived);
-    if (archiveCompare !== 0) {
-      return archiveCompare;
-    }
-
     const completionCompare = Number(a.checked) - Number(b.checked);
     if (completionCompare !== 0) {
       return completionCompare;
