@@ -82,7 +82,7 @@ export class TaskCompletionStore {
     try {
       existing = new Uint8Array(await readFile(this.databasePath));
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      if (!isMissingFileError(error)) throw error;
     }
     this.database = new SqlJs.Database(existing);
     this.database.run(`CREATE TABLE IF NOT EXISTS completed_tasks (
@@ -120,4 +120,11 @@ export class TaskCompletionStore {
 
 function createId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isMissingFileError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+  return error.code === "ENOENT";
 }

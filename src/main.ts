@@ -1,10 +1,10 @@
-import { Editor, MarkdownView, Menu, Modal, Notice, Plugin, Setting, TFile } from "obsidian";
+import { Editor, Menu, Modal, Notice, Plugin, Setting, TFile } from "obsidian";
 import { getSettingsCopy } from "./i18n";
 import { registerDateTokenDecorations } from "./date-token-decorations";
 import { TaskEventPipeline } from "./pipeline";
 import { DEFAULT_SETTINGS, TaskManagerSettingTab } from "./settings";
 import { preloadSidebarTaskCache, TASK_SIDEBAR_VIEW_TYPE, TaskSidebarView } from "./task-sidebar-view";
-import { isTaskArchivable, parseTaskLine, setTaskPriority } from "./tasks/task-line";
+import { parseTaskLine, setTaskPriority } from "./tasks/task-line";
 import { TaskMonitorService } from "./tasks/task-monitor-service";
 import { TaskCompletionStore } from "./tasks/task-completion-store";
 import { TASK_ANALYTICS_VIEW_TYPE, TaskAnalyticsView } from "./task-analytics-view";

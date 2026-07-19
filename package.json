@@ -1,6 +1,6 @@
 {
   "name": "task-manager",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "description": "the plugin to manage tasks",
   "scripts": {
@@ -14,6 +14,7 @@
     "sql.js": "^1.14.1"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "@types/sql.js": "^1.4.9",
     "esbuild": "^0.25.5",
     "obsidian": "^1.8.10",
