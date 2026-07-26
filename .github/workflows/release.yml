@@ -34,8 +34,7 @@ jobs:
           REF_TYPE="${GITHUB_REF_TYPE}"
 
           if [[ "$REF_TYPE" == "tag" ]]; then
-            NORMALIZED_TAG="${REF_NAME#v}"
-            if [[ "$MANIFEST_VERSION" != "$NORMALIZED_TAG" ]]; then
+            if [[ "$MANIFEST_VERSION" != "$REF_NAME" ]]; then
               echo "manifest.json version ($MANIFEST_VERSION) does not match tag ($REF_NAME)."
               exit 1
             fi
