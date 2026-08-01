@@ -3,7 +3,7 @@
 <img src="./assets/media/marker_pro.png" width="800">
 </p>
 <p align="center">
-<strong>An Obsidian desktop plugin that timestamps tasks, adds priorities, filters work across notes, and stores completed-task records in SQLite.</strong>
+<strong>An Obsidian plugin that automatically timestamps tasks, adds priorities, filters work across notes, and archives completed items.</strong>
 </p>
 
 
@@ -32,7 +32,8 @@ Task Manager starts working as soon as you enable it(**Zero Config**):
 ![Task filter sidebar](./assets/media/task_filter.png)
 ---
 
-- Completed tasks remain in their source note with `@done(...)`; their structured completion records are saved in `.obsidian/plugins/task-timestamp-marker/completed-tasks.sqlite` for analytics.
+- Turn on optional archiving later if you want completed tasks moved into weekly notes.
+![Archive demo](./assets/media/archieve.png)
 ---
 
 <p align="center">

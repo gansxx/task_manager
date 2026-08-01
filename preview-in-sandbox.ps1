@@ -14,12 +14,10 @@ function Write-Utf8NoBom {
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
 }
-
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $manifestPath = Join-Path $scriptDir "manifest.json"
 $mainJsPath = Join-Path $scriptDir "main.js"
 $stylesPath = Join-Path $scriptDir "styles.css"
-$sqliteWasmPath = Join-Path $scriptDir "sql-wasm.wasm"
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     throw "manifest.json not found: $manifestPath"
@@ -48,11 +46,6 @@ New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
 
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $targetDir "manifest.json") -Force
 Copy-Item -LiteralPath $mainJsPath -Destination (Join-Path $targetDir "main.js") -Force
-
-if (-not (Test-Path -LiteralPath $sqliteWasmPath)) {
-    throw "sql-wasm.wasm not found: $sqliteWasmPath"
-}
-Copy-Item -LiteralPath $sqliteWasmPath -Destination (Join-Path $targetDir "sql-wasm.wasm") -Force
 
 if (Test-Path -LiteralPath $stylesPath) {
     Copy-Item -LiteralPath $stylesPath -Destination (Join-Path $targetDir "styles.css") -Force

@@ -5,11 +5,14 @@ import type { TaskManagerSettings } from "./types";
 
 export const DEFAULT_SETTINGS: TaskManagerSettings = {
   watchedFolder: "",
+  archiveRootFolder: "Task Archive",
   favoritePaths: [],
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
   timestampPrecision: "date",
   hideMetadataTokens: false,
+  skipArchiveConfirmation: false,
+  immediateArchiveEnabled: false,
   preloadVaultOnStartup: false,
   languageMode: "auto",
 };
@@ -44,6 +47,15 @@ export class TaskManagerSettingTab extends PluginSettingTab {
         control: { type: "text", key: "watchedFolder", placeholder: copy.watchedFolderPlaceholder },
       },
       {
+        name: copy.archiveRootFolderName,
+        desc: copy.archiveRootFolderDesc,
+        control: {
+          type: "text",
+          key: "archiveRootFolder",
+          placeholder: copy.archiveRootFolderPlaceholder,
+        },
+      },
+      {
         name: copy.startTokenFormatName,
         desc: copy.startTokenFormatDesc,
         control: { type: "text", key: "startTokenFormat" },
@@ -68,6 +80,7 @@ export class TaskManagerSettingTab extends PluginSettingTab {
         },
       },
       { name: copy.hideMetadataTokensName, desc: copy.hideMetadataTokensDesc, control: { type: "toggle", key: "hideMetadataTokens" } },
+      { name: copy.immediateArchiveName, desc: copy.immediateArchiveDesc, control: { type: "toggle", key: "immediateArchiveEnabled" } },
       { name: copy.preloadVaultOnStartupName, desc: copy.preloadVaultOnStartupDesc, control: { type: "toggle", key: "preloadVaultOnStartup" } },
     ];
   }
@@ -102,6 +115,19 @@ export class TaskManagerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.watchedFolder)
           .onChange(async (value) => {
             this.plugin.settings.watchedFolder = normalizeVaultPath(value);
+            await this.onSave();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.archiveRootFolderName)
+      .setDesc(copy.archiveRootFolderDesc)
+      .addText((text) =>
+        text
+          .setPlaceholder(copy.archiveRootFolderPlaceholder)
+          .setValue(this.plugin.settings.archiveRootFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.archiveRootFolder = normalizeVaultPath(value);
             await this.onSave();
           }),
       );
@@ -151,6 +177,18 @@ export class TaskManagerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.hideMetadataTokens)
           .onChange(async (value) => {
             this.plugin.settings.hideMetadataTokens = value;
+            await this.onSave();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName(copy.immediateArchiveName)
+      .setDesc(copy.immediateArchiveDesc)
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.immediateArchiveEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.immediateArchiveEnabled = value;
             await this.onSave();
           }),
       );

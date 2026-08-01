@@ -36,6 +36,7 @@ jobs:
           if [[ "$REF_TYPE" == "tag" ]]; then
             if [[ "$MANIFEST_VERSION" != "$REF_NAME" ]]; then
               echo "manifest.json version ($MANIFEST_VERSION) does not match tag ($REF_NAME)."
+              echo "Use the exact manifest version as the tag; do not prefix it with v."
               exit 1
             fi
             RELEASE_TAG="$REF_NAME"
@@ -61,7 +62,7 @@ jobs:
 
           rm -rf release "$PACKAGE_ZIP"
           mkdir -p "$PACKAGE_DIR"
-          cp main.js manifest.json styles.css sql-wasm.wasm "$PACKAGE_DIR/"
+          cp main.js manifest.json styles.css "$PACKAGE_DIR/"
           (cd release && zip -r "../$PACKAGE_ZIP" "$PLUGIN_ID")
 
           echo "package_dir=$PACKAGE_DIR" >> "$GITHUB_OUTPUT"
@@ -87,7 +88,6 @@ jobs:
               manifest.json \
               main.js \
               styles.css \
-              sql-wasm.wasm \
               "${{ steps.manual_package.outputs.package_zip }}" \
               --clobber
           else
@@ -95,7 +95,6 @@ jobs:
               manifest.json \
               main.js \
               styles.css \
-              sql-wasm.wasm \
               "${{ steps.manual_package.outputs.package_zip }}" \
               --title "$TAG" \
               --notes "$NOTES"
