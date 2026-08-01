@@ -25,7 +25,7 @@ export default class TaskManagerPlugin extends Plugin {
     await this.loadSettings();
 
     this.pipeline = new TaskEventPipeline();
-    this.archiveService = new TaskArchiveService(this.app, () => this.settings);
+    this.archiveService = new TaskArchiveService();
     this.completionStore = new TaskCompletionStore(this.app, this.manifest.id);
     this.monitorService = new TaskMonitorService(
       this.app,

@@ -32,7 +32,7 @@ Task Manager starts working as soon as you enable it(**Zero Config**):
 ![Task filter sidebar](./assets/media/task_filter.png)
 ---
 
-- Turn on optional archiving later if you want completed tasks moved into weekly notes.
+- Turn on optional archiving to remove completed tasks from the source note and preserve their details in the plugin SQLite database.
 ![Archive demo](./assets/media/archieve.png)
 ---
 
