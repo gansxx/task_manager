@@ -272,13 +272,6 @@ export class TaskSidebarView extends ItemView {
       this.renderFilePathSuggestions();
       void this.refreshTasks(false);
     });
-    const archiveRootButton = fileButtonRow.createEl("button", { text: copy.sidebarArchiveButton });
-    archiveRootButton.addEventListener("click", () => {
-      this.applyFilePathSelection(this.plugin.settings.archiveRootFolder);
-      if (this.archiveSelectEl) {
-        this.archiveSelectEl.value = "archived";
-      }
-    });
     this.initializeFileFilter();
 
     controls.createEl("label", { text: copy.sidebarDateRangeLabel });

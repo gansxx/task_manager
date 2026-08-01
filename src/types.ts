@@ -6,7 +6,6 @@ export type TaskPriority = "none" | "low" | "medium" | "high" | "urgent";
 
 export interface TaskManagerSettings {
   watchedFolder: string;
-  archiveRootFolder: string;
   favoritePaths: string[];
   startTokenFormat: string;
   doneTokenFormat: string;

@@ -5,7 +5,6 @@ import type { TaskManagerSettings } from "./types";
 
 export const DEFAULT_SETTINGS: TaskManagerSettings = {
   watchedFolder: "",
-  archiveRootFolder: "Task Archive",
   favoritePaths: [],
   startTokenFormat: "@start({date})",
   doneTokenFormat: "@done({date})",
@@ -45,15 +44,6 @@ export class TaskManagerSettingTab extends PluginSettingTab {
         name: copy.watchedFolderName,
         desc: copy.watchedFolderDesc,
         control: { type: "text", key: "watchedFolder", placeholder: copy.watchedFolderPlaceholder },
-      },
-      {
-        name: copy.archiveRootFolderName,
-        desc: copy.archiveRootFolderDesc,
-        control: {
-          type: "text",
-          key: "archiveRootFolder",
-          placeholder: copy.archiveRootFolderPlaceholder,
-        },
       },
       {
         name: copy.startTokenFormatName,
@@ -115,19 +105,6 @@ export class TaskManagerSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.watchedFolder)
           .onChange(async (value) => {
             this.plugin.settings.watchedFolder = normalizeVaultPath(value);
-            await this.onSave();
-          }),
-      );
-
-    new Setting(containerEl)
-      .setName(copy.archiveRootFolderName)
-      .setDesc(copy.archiveRootFolderDesc)
-      .addText((text) =>
-        text
-          .setPlaceholder(copy.archiveRootFolderPlaceholder)
-          .setValue(this.plugin.settings.archiveRootFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.archiveRootFolder = normalizeVaultPath(value);
             await this.onSave();
           }),
       );

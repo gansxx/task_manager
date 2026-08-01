@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task Manager SQLite Archive Test"
+  short_description: "Test SQLite-only task archiving in Obsidian Sandbox."
+  default_prompt: "Run the Task Manager SQLite-only archive test in Obsidian Sandbox."

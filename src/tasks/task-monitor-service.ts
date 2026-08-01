@@ -455,7 +455,7 @@ export class TaskMonitorService {
   }
 
   private isRefreshTargetFile(file: TFile): boolean {
-    if (!isMarkdownFile(file) || this.isArchiveFile(file)) {
+    if (!isMarkdownFile(file)) {
       return false;
     }
 
@@ -465,11 +465,6 @@ export class TaskMonitorService {
     }
 
     return this.app.workspace.getActiveFile()?.path === file.path;
-  }
-
-  private isArchiveFile(file: TFile): boolean {
-    const archiveRoot = this.getSettings().archiveRootFolder.trim();
-    return Boolean(archiveRoot && isFileInsideFolder(file, archiveRoot));
   }
 
   private async refreshFile(file: TFile): Promise<{ updated: boolean; archivedTasks: number }> {

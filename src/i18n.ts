@@ -17,9 +17,6 @@ interface SettingsCopy {
   watchedFolderName: string;
   watchedFolderDesc: string;
   watchedFolderPlaceholder: string;
-  archiveRootFolderName: string;
-  archiveRootFolderDesc: string;
-  archiveRootFolderPlaceholder: string;
   startTokenFormatName: string;
   startTokenFormatDesc: string;
   doneTokenFormatName: string;
@@ -141,15 +138,12 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     watchedFolderDesc:
       "留空时默认跟踪当前正在编辑的文件；填写文件夹路径后，仅监听该目录下的 Markdown 文件。",
     watchedFolderPlaceholder: "留空则跟踪当前文件",
-    archiveRootFolderName: "归档根目录",
-    archiveRootFolderDesc: "完成任务会按 年 / 月 / 周 文件归档到这里。",
-    archiveRootFolderPlaceholder: "Task Archive",
     startTokenFormatName: "开始标记格式",
     startTokenFormatDesc: "使用 {date} 作为日期占位符。",
     doneTokenFormatName: "完成标记格式",
     doneTokenFormatDesc: "使用 {date} 作为日期占位符。",
     timestampPrecisionName: "时间戳精度",
-    timestampPrecisionDesc: "控制 {date} 写入日期、分钟或秒级时间，归档仍按日期分组。",
+    timestampPrecisionDesc: "控制 {date} 写入日期、分钟或秒级时间，归档记录会保存到 SQLite。",
     timestampPrecisionDate: "日期（YYYY-MM-DD）",
     timestampPrecisionMinute: "分钟（YYYY-MM-DD HH:mm）",
     timestampPrecisionSecond: "秒（YYYY-MM-DD HH:mm:ss）",
@@ -158,7 +152,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveDontAskAgainLabel: "以后不再提示",
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
-      "默认关闭。开启后勾选任务会立刻归档并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
+      "默认关闭。开启后勾选任务会立刻写入 SQLite 并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
     preloadVaultOnStartupName: "启动后后台扫描全库",
     preloadVaultOnStartupDesc:
       "默认关闭。开启后，插件启动后会在后台预扫描整个仓库，任务侧边栏切换到全库时无需再等待首次扫描。",
@@ -182,10 +176,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveCurrentTaskConfirmMessage: "将归档当前已完成任务。归档后该任务会从当前页面移除。是否继续？",
     archiveConfirmButton: "确认归档",
     archiveCancelButton: "取消",
-    archiveLocationLabel: "归档位置",
-    archiveLocationsLabel: "归档位置",
-    archiveSingleTaskSuccessWithPath: (path) => `已归档当前任务。归档位置：${path}`,
-    archivePageSuccessWithPaths: (count, paths) => `已归档 ${count} 个任务。归档位置：${paths.join("；")}`,
+    archiveLocationLabel: "SQLite 归档位置",
+    archiveLocationsLabel: "SQLite 归档位置",
+    archiveSingleTaskSuccessWithPath: () => "已归档当前任务到 SQLite。",
+    archivePageSuccessWithPaths: (count) => `已归档 ${count} 个任务到 SQLite。`,
     sidebarTitle: "任务",
     sidebarRefreshButton: "刷新",
     sidebarFiltersSummary: "筛选器",
@@ -266,15 +260,12 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     watchedFolderDesc:
       "Leave this blank to track the file you are currently editing. Set a folder path to monitor only Markdown files inside that folder.",
     watchedFolderPlaceholder: "Leave blank to track the current file",
-    archiveRootFolderName: "Archive root folder",
-    archiveRootFolderDesc: "Completed tasks will be archived under year / month / week files here.",
-    archiveRootFolderPlaceholder: "Task Archive",
     startTokenFormatName: "Start token format",
     startTokenFormatDesc: "Use {date} as the date placeholder.",
     doneTokenFormatName: "Done token format",
     doneTokenFormatDesc: "Use {date} as the date placeholder.",
     timestampPrecisionName: "Timestamp precision",
-    timestampPrecisionDesc: "Controls whether {date} writes a date, minute timestamp, or second timestamp. Archives still group by day.",
+    timestampPrecisionDesc: "Controls whether {date} writes a date, minute timestamp, or second timestamp. Archives are stored in SQLite.",
     timestampPrecisionDate: "Date (YYYY-MM-DD)",
     timestampPrecisionMinute: "Minute (YYYY-MM-DD HH:mm)",
     timestampPrecisionSecond: "Second (YYYY-MM-DD HH:mm:ss)",
@@ -283,7 +274,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveDontAskAgainLabel: "Don't ask again",
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:
-      "Disabled by default. When enabled, completed tasks are archived and removed from the source note immediately. When disabled, only the @done date is added.",
+      "Disabled by default. When enabled, completed tasks are stored in SQLite and removed from the source note immediately. When disabled, only the @done date is added.",
     preloadVaultOnStartupName: "Preload whole vault on startup",
     preloadVaultOnStartupDesc:
       "Disabled by default. When enabled, the plugin scans the whole vault in the background after startup so the task sidebar can switch to whole-vault results without the first scan delay.",
@@ -307,10 +298,10 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveCurrentTaskConfirmMessage: "Archive the current completed task? It will be removed from the note after archiving.",
     archiveConfirmButton: "Archive",
     archiveCancelButton: "Cancel",
-    archiveLocationLabel: "Archive location",
-    archiveLocationsLabel: "Archive locations",
-    archiveSingleTaskSuccessWithPath: (path) => `Archived the current task to ${path}`,
-    archivePageSuccessWithPaths: (count, paths) => `Archived ${count} tasks to ${paths.join("; ")}`,
+    archiveLocationLabel: "SQLite archive location",
+    archiveLocationsLabel: "SQLite archive location",
+    archiveSingleTaskSuccessWithPath: () => "Archived the current task to SQLite.",
+    archivePageSuccessWithPaths: (count) => `Archived ${count} tasks to SQLite.`,
     sidebarTitle: "Tasks",
     sidebarRefreshButton: "Refresh",
     sidebarFiltersSummary: "Filters",
