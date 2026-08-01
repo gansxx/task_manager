@@ -1,5 +1,6 @@
 import { App } from "obsidian";
 import initSqlJs, { type Database } from "sql.js";
+import bundledSqlWasm from "sql.js/dist/sql-wasm.wasm";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import type { ParsedTaskLine } from "../types";
@@ -8,6 +9,12 @@ import { getTaskTokenDates, stripMetadataTokens } from "./task-line";
 export interface CompletedTaskRecord {
   completedAt: string;
   startedAt: string | null;
+}
+
+export interface ArchivedTaskRecord {
+  sourcePath: string;
+  archivePath: string;
+  archivedAt: string;
 }
 
 export class TaskCompletionStore {
@@ -55,6 +62,32 @@ export class TaskCompletionStore {
     await this.persist();
   }
 
+  async recordArchive(
+    sourcePath: string,
+    archivePath: string,
+    markdown: string,
+    archivedAt: string,
+  ): Promise<void> {
+    await this.ensureReady();
+    if (!this.database) return;
+
+    const taskText = stripMetadataTokens(markdown.replace(/^\s*-\s\[[ xX]\]\s?/, ""));
+    const { start, done } = getTaskTokenDates(markdown);
+    const archiveKey = `${sourcePath}\u001f${archivePath}\u001f${archivedAt}\u001f${taskText}`;
+    this.database.run(
+      `INSERT INTO archived_tasks (
+        id, archive_key, task_text, raw_markdown, source_path, archive_path,
+        started_at, completed_at, archived_at, recorded_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(archive_key) DO NOTHING`,
+      [
+        createId(), archiveKey, taskText, markdown, sourcePath, archivePath,
+        start, done, archivedAt, new Date().toISOString(),
+      ],
+    );
+    await this.persist();
+  }
+
   async getActiveCompletedTasks(): Promise<CompletedTaskRecord[]> {
     await this.ensureReady();
     if (!this.database) return [];
@@ -76,8 +109,7 @@ export class TaskCompletionStore {
   }
 
   private async initialize(): Promise<void> {
-    const wasmFile = await readFile(path.join(this.pluginDirectory, "sql-wasm.wasm"));
-    const SqlJs = await initSqlJs({ wasmBinary: new Uint8Array(wasmFile).buffer });
+    const SqlJs = await initSqlJs({ wasmBinary: await this.loadWasmBinary() });
     let existing: Uint8Array | undefined;
     try {
       existing = new Uint8Array(await readFile(this.databasePath));
@@ -99,7 +131,40 @@ export class TaskCompletionStore {
       reopened_at TEXT
     )`);
     this.database.run("CREATE INDEX IF NOT EXISTS completed_tasks_active_completed_at ON completed_tasks(reopened_at, completed_at)");
+    this.database.run(`CREATE TABLE IF NOT EXISTS archived_tasks (
+      id TEXT PRIMARY KEY,
+      archive_key TEXT NOT NULL UNIQUE,
+      task_text TEXT NOT NULL,
+      raw_markdown TEXT NOT NULL,
+      source_path TEXT NOT NULL,
+      archive_path TEXT NOT NULL,
+      started_at TEXT,
+      completed_at TEXT,
+      archived_at TEXT NOT NULL,
+      recorded_at TEXT NOT NULL
+    )`);
+    this.database.run("CREATE INDEX IF NOT EXISTS archived_tasks_archived_at ON archived_tasks(archived_at)");
     await this.persist();
+  }
+
+  private async loadWasmBinary(): Promise<ArrayBuffer> {
+    const wasmPath = path.join(this.pluginDirectory, "sql-wasm.wasm");
+    try {
+      return this.toArrayBuffer(new Uint8Array(await readFile(wasmPath)));
+    } catch (error) {
+      if (!isMissingFileError(error)) throw error;
+    }
+
+    const generatedWasm = new Uint8Array(bundledSqlWasm);
+    await mkdir(this.pluginDirectory, { recursive: true });
+    await writeFile(wasmPath, generatedWasm);
+    return this.toArrayBuffer(generatedWasm);
+  }
+
+  private toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    return copy.buffer;
   }
 
   private async persist(): Promise<void> {

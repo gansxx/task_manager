@@ -1,7 +1,6 @@
 ﻿import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from 'node:module';
-import { copyFile } from "node:fs/promises";
 
 const banner =
 `/*
@@ -38,13 +37,15 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
+	loader: {
+		".wasm": "binary",
+	},
 	outfile: "main.js",
 	minify: prod,
 });
 
 if (prod) {
 	await context.rebuild();
-	await copyFile("node_modules/sql.js/dist/sql-wasm.wasm", "sql-wasm.wasm");
 	process.exit(0);
 } else {
 	await context.watch();
