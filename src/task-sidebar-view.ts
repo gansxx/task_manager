@@ -27,7 +27,7 @@ export const TASK_SIDEBAR_VIEW_TYPE = "task-manager-sidebar-view";
 type PriorityFilter = TaskPriority | "all";
 type FileScopeFilter = "current" | "path" | "vault";
 type ArchiveFilter = "all" | "active" | "archived";
-type CompletionFilter = "all" | "open" | "done";
+type CompletionFilter = "all" | "open" | "done" | "canceled";
 type FilePathOptionType = "folder" | "file";
 
 interface SidebarTask {
@@ -38,6 +38,7 @@ interface SidebarTask {
   date: string | null;
   startTimestamp: string | null;
   doneTimestamp: string | null;
+  status: "open" | "done" | "canceled";
   durationText: string | null;
   priority: TaskPriority;
   archived: boolean;
@@ -333,6 +334,7 @@ export class TaskSidebarView extends ItemView {
       ["all", copy.sidebarCompletionAll],
       ["open", copy.sidebarCompletionOpen],
       ["done", copy.sidebarCompletionDone],
+      ["canceled", copy.sidebarMenuCancel ?? "取消任务"],
     ] as const) {
       this.completionSelectEl.createEl("option", { value, text: label });
     }
@@ -601,7 +603,11 @@ export class TaskSidebarView extends ItemView {
       return false;
     }
 
-    if (filters.completion === "done" && !task.checked) {
+    if (filters.completion === "done" && task.status !== "done") {
+      return false;
+    }
+
+    if (filters.completion === "canceled" && task.status !== "canceled") {
       return false;
     }
 
@@ -665,7 +671,7 @@ export class TaskSidebarView extends ItemView {
         copy.sidebarStatusCompletion(
           filters.completion === "open"
             ? copy.sidebarCompletionOpen
-            : copy.sidebarCompletionDone,
+            : filters.completion === "canceled" ? (copy.sidebarMenuCancel ?? "取消任务") : copy.sidebarCompletionDone,
         ),
       );
     }
@@ -858,9 +864,16 @@ export class TaskSidebarView extends ItemView {
 
     menu.addItem((item) =>
       item
-        .setTitle(task.checked ? copy.sidebarMenuToggleReopen : copy.sidebarMenuToggleComplete)
+        .setTitle(task.status === "canceled" ? (copy.sidebarMenuRestore ?? "恢复任务") : task.checked ? copy.sidebarMenuToggleReopen : copy.sidebarMenuToggleComplete)
         .setIcon(task.checked ? "rotate-ccw" : "check")
         .onClick(() => void this.toggleTaskChecked(task, !task.checked)),
+    );
+
+    menu.addItem((item) =>
+      item
+        .setTitle(task.status === "canceled" ? (copy.sidebarMenuRestore ?? "恢复任务") : (copy.sidebarMenuCancel ?? "取消任务"))
+        .setIcon("x-circle")
+        .onClick(() => void this.toggleTaskCanceled(task)),
     );
 
     menu.addItem((item) =>
@@ -932,6 +945,15 @@ export class TaskSidebarView extends ItemView {
 
   private async toggleTaskChecked(task: SidebarTask, checked: boolean): Promise<void> {
     const updated = await this.plugin.setTaskCompletion(task.file, task.lineNumber, checked);
+    if (!updated) {
+      new Notice(this.copy.sidebarTaskMissingNotice);
+      return;
+    }
+    void this.refreshTasks(true);
+  }
+
+  private async toggleTaskCanceled(task: SidebarTask): Promise<void> {
+    const updated = await this.plugin.setTaskCanceled(task.file, task.lineNumber, task.status !== "canceled");
     if (!updated) {
       new Notice(this.copy.sidebarTaskMissingNotice);
       return;
@@ -1231,6 +1253,7 @@ function toCachedSidebarTask(task: SidebarTask): CachedSidebarTask {
     date: task.date,
     startTimestamp: task.startTimestamp,
     doneTimestamp: task.doneTimestamp,
+    status: task.status,
     durationText: task.durationText,
     priority: task.priority,
     archived: task.archived,
@@ -1275,16 +1298,17 @@ async function collectSidebarTasks(
       }
       const parent = stack[stack.length - 1] ?? null;
       const tokenDates = getTaskTokenDates(line);
-      const date = getDatePart(tokenDates.done ?? tokenDates.start ?? "");
+      const date = getDatePart(tokenDates.canceled ?? tokenDates.done ?? tokenDates.start ?? "");
       const task: SidebarTask = {
         file,
         lineNumber: index,
         text: parsedTask.body,
         checked: parsedTask.checked,
+        status: parsedTask.status,
         date,
         startTimestamp: tokenDates.start,
-        doneTimestamp: tokenDates.done,
-        durationText: tokenDates.start && tokenDates.done
+        doneTimestamp: parsedTask.status === "done" ? tokenDates.done : null,
+        durationText: parsedTask.status === "done" && tokenDates.start && tokenDates.done
           ? formatDuration(tokenDates.start, tokenDates.done)
           : null,
         priority: parsedTask.priority,

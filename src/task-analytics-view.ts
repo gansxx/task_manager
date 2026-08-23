@@ -88,7 +88,7 @@ export class TaskAnalyticsView extends ItemView {
       const content = await this.app.vault.cachedRead(file);
       for (const line of content.split("\n")) {
         const parsed = parseTaskLine(line);
-        if (!parsed?.checked) continue;
+        if (parsed?.status !== "done") continue;
         const { start, done } = getTaskTokenDates(line);
         const doneDate = parseLocalDate(done);
         const startDate = parseLocalDate(start);

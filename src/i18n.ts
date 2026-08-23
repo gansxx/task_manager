@@ -117,6 +117,8 @@ interface SettingsCopy {
   sidebarMenuAddComment: string;
   sidebarMenuToggleComplete: string;
   sidebarMenuToggleReopen: string;
+  sidebarMenuCancel?: string;
+  sidebarMenuRestore?: string;
   sidebarTaskMissingNotice: string;
   sidebarCommentModalTitle: string;
   sidebarCommentFieldName: string;
@@ -363,6 +365,8 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     sidebarMenuAddComment: "Add comment",
     sidebarMenuToggleComplete: "Mark complete",
     sidebarMenuToggleReopen: "Mark incomplete",
+    sidebarMenuCancel: "Cancel task",
+    sidebarMenuRestore: "Restore task",
     sidebarTaskMissingNotice: "Task Manager could not find the selected task line.",
     sidebarCommentModalTitle: "Add task comment",
     sidebarCommentFieldName: "Comment",
@@ -397,5 +401,10 @@ export function resolveLocale(
 export function getSettingsCopy(
   settings: Pick<TaskManagerSettings, "languageMode">,
 ): SettingsCopy {
-  return COPY[resolveLocale(settings.languageMode)];
+  const copy = COPY[resolveLocale(settings.languageMode)];
+  return {
+    ...copy,
+    sidebarMenuCancel: copy.sidebarMenuCancel ?? "取消任务",
+    sidebarMenuRestore: copy.sidebarMenuRestore ?? "恢复任务",
+  };
 }

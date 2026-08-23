@@ -8,6 +8,7 @@ import type { ArchiveWriteResult, TaskArchiveService } from "./archive-service";
 import { TaskCompletionStore } from "./task-completion-store";
 import {
   appendDoneToken,
+  setTaskCanceled,
   appendTaskCommentWithTimestamp,
   createStartLine,
   getIndentLevel,
@@ -197,6 +198,14 @@ export class TaskMonitorService {
     return true;
   }
 
+  async setTaskCanceled(file: TFile, lineNumber: number, canceled: boolean): Promise<boolean> {
+    return this.updateTaskLineContent(file, lineNumber, (line) => setTaskCanceled(
+      line,
+      canceled,
+      canceled ? this.formatToken("@canceled({date})", getCurrentTimestamp(this.getSettings().timestampPrecision)) : undefined,
+    ));
+  }
+
   registerDefaultHandlers(): void {
     this.pipeline.on("taskCreated", (event) => {
       const startToken = this.formatToken(
@@ -235,6 +244,9 @@ export class TaskMonitorService {
     });
 
     this.pipeline.on("taskCompleted", async (event) => {
+      if (event.parsedTask.status !== "done") {
+        return;
+      }
       const doneToken = this.formatToken(
         this.getSettings().doneTokenFormat,
         event.date,
@@ -541,6 +553,17 @@ export class TaskMonitorService {
       }
 
       if (!parsed.checked) {
+        continue;
+      }
+
+      if (parsed.canceledToken) {
+        // Repair task lines created by older builds, which could leave both
+        // terminal tokens behind. Canceled is authoritative and is not archived.
+        const nextLine = setTaskCanceled(line, true, parsed.canceledToken);
+        if (nextLine !== line) {
+          lines[lineNumber] = nextLine;
+          updated = true;
+        }
         continue;
       }
 
