@@ -157,6 +157,16 @@ export default class TaskManagerPlugin extends Plugin {
               this.setCurrentTaskPriority(editor, priority);
             })),
         );
+        menu.addItem((item) =>
+          item
+            .setTitle(parseTaskLine(lineText)?.canceledToken ? (this.copy.sidebarMenuRestore ?? "恢复任务") : (this.copy.sidebarMenuCancel ?? "取消任务"))
+            .setIcon("x-circle")
+            .onClick(() => {
+              if (activeFile) {
+                void this.setTaskCanceled(activeFile, editor.getCursor().line, !parseTaskLine(lineText)?.canceledToken);
+              }
+            }),
+        );
         window.setTimeout(() => {
           const menus = Array.from(activeDocument.querySelectorAll(".menu"));
           const latestMenu = menus[menus.length - 1];
@@ -264,6 +274,11 @@ export default class TaskManagerPlugin extends Plugin {
   async setTaskCompletion(file: TFile, lineNumber: number, checked: boolean): Promise<boolean> {
     return this.monitorService.setTaskCompletion(file, lineNumber, checked);
   }
+
+  async setTaskCanceled(file: TFile, lineNumber: number, canceled: boolean): Promise<boolean> {
+    return this.monitorService.setTaskCanceled(file, lineNumber, canceled);
+  }
+
 
   async refreshTasks(): Promise<void> {
     if (this.refreshTasksPromise) {

@@ -29,6 +29,7 @@ export class TaskCompletionStore {
     markdown: string,
     task: ParsedTaskLine,
   ): Promise<void> {
+    if (task.status !== "done") return;
     await this.ensureReady();
     const { start, done } = getTaskTokenDates(markdown);
     if (!done || !this.database) return;

@@ -4,6 +4,7 @@ import { getDatePart } from "../utils/date";
 const TASK_LINE_REGEX = /^(\s*)-\s\[( |x|X)\]\s?(.*)$/;
 const START_TOKEN_REGEX = /@start\(([^)]+)\)/;
 const DONE_TOKEN_REGEX = /@done\(([^)]+)\)/;
+const CANCELED_TOKEN_REGEX = /@canceled\(([^)]+)\)/;
 const PRIORITY_TOKEN_REGEX = /\s*@priority\((none|low|medium|high|urgent)\)/i;
 const COMMENT_TOKEN_REGEX = /\s*@comment\([^)]+\)/g;
 
@@ -14,16 +15,20 @@ export function parseTaskLine(line: string): ParsedTaskLine | null {
   }
 
   const [, indent, marker, body] = match;
+  const checked = marker.toLowerCase() === "x";
   const startToken = START_TOKEN_REGEX.exec(body)?.[0];
   const doneToken = DONE_TOKEN_REGEX.exec(body)?.[0];
+  const canceledToken = CANCELED_TOKEN_REGEX.exec(body)?.[0];
   const priority = normalizePriority(PRIORITY_TOKEN_REGEX.exec(body)?.[1]);
 
   return {
     indent,
-    checked: marker.toLowerCase() === "x",
+    checked,
     body,
     startToken,
     doneToken,
+    canceledToken,
+    status: canceledToken ? "canceled" : (checked ? "done" : "open"),
     priority,
   };
 }
@@ -43,7 +48,9 @@ export function createStartLine(line: string, startToken: string): string {
 
 export function appendDoneToken(line: string, doneToken: string): string {
   const parsed = parseTaskLine(line);
-  if (!parsed || parsed.doneToken) {
+  // A canceled task remains checked in Markdown, but it is not completed.
+  // Never add a completion token to that terminal state.
+  if (!parsed || parsed.doneToken || parsed.canceledToken) {
     return line;
   }
 
@@ -59,6 +66,25 @@ export function removeDoneToken(line: string): string {
 
   const body = parsed.body.replace(DONE_TOKEN_REGEX, "").replace(/\s{2,}/g, " ").trim();
   return `${parsed.indent}- [ ] ${body}`.trimEnd();
+}
+
+export function setTaskCanceled(line: string, canceled: boolean, canceledToken?: string): string {
+  const parsed = parseTaskLine(line);
+  if (!parsed) {
+    return line;
+  }
+
+  const bodyWithoutStatus = parsed.body
+    .replace(DONE_TOKEN_REGEX, "")
+    .replace(CANCELED_TOKEN_REGEX, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!canceled) {
+    return `${parsed.indent}- [ ] ${bodyWithoutStatus}`.trimEnd();
+  }
+
+  const token = canceledToken ?? `@canceled(${new Date().toISOString()})`;
+  return `${parsed.indent}- [x] ${bodyWithoutStatus} ${token}`.trimEnd();
 }
 
 export function setTaskPriority(line: string, priority: TaskPriority): string {
@@ -115,26 +141,28 @@ export function setTaskChecked(
   }
 
   const uncheckedLine = `${parsed.indent}- [ ] ${parsed.body}`.trimEnd();
-  return removeDoneToken(uncheckedLine);
+  return setTaskCanceled(removeDoneToken(uncheckedLine), false);
 }
 
 export function getTaskTokenDates(line: string): {
   start: string | null;
   done: string | null;
+  canceled: string | null;
 } {
   const parsed = parseTaskLine(line);
   if (!parsed) {
-    return { start: null, done: null };
+    return { start: null, done: null, canceled: null };
   }
 
   const start = START_TOKEN_REGEX.exec(parsed.body)?.[1] ?? null;
   const done = DONE_TOKEN_REGEX.exec(parsed.body)?.[1] ?? null;
-  return { start, done };
+  const canceled = CANCELED_TOKEN_REGEX.exec(parsed.body)?.[1] ?? null;
+  return { start, done, canceled };
 }
 
 export function stripMetadataTokens(value: string): string {
   return value
-    .replace(/@(?:start|done|priority|archived)\([^)]+\)/g, "")
+    .replace(/@(?:start|done|canceled|priority|archived)\([^)]+\)/g, "")
     .replace(/@from\("[^"]+"\)/g, "")
     .replace(COMMENT_TOKEN_REGEX, "")
     .replace(/\s{2,}/g, " ")
@@ -145,6 +173,12 @@ export function getTaskReferenceDate(line: string): string | null {
   const parsed = parseTaskLine(line);
   if (!parsed) {
     return null;
+  }
+
+  const canceledDate = CANCELED_TOKEN_REGEX.exec(parsed.body)?.[1];
+  const normalizedCanceledDate = canceledDate ? getDatePart(canceledDate) : null;
+  if (normalizedCanceledDate) {
+    return normalizedCanceledDate;
   }
 
   const doneDate = DONE_TOKEN_REGEX.exec(parsed.body)?.[1];
@@ -163,7 +197,7 @@ export function isTaskArchivable(line: string): boolean {
     return false;
   }
 
-  return parsed.checked;
+  return parsed.status === "done";
 }
 
 export function getTaskArchiveBlock(
@@ -172,7 +206,7 @@ export function getTaskArchiveBlock(
 ): { text: string; lineCount: number } | null {
   const taskLine = lines[lineNumber];
   const parsed = taskLine === undefined ? null : parseTaskLine(taskLine);
-  if (!taskLine || !parsed || !parsed.checked) {
+  if (!taskLine || !parsed || parsed.status !== "done") {
     return null;
   }
 
@@ -209,7 +243,7 @@ export function wasTaskCompleted(
     previousTask &&
       currentTask &&
       !previousTask.checked &&
-      currentTask.checked,
+      currentTask.status === "done",
   );
 }
 
