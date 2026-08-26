@@ -154,7 +154,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveDontAskAgainLabel: "以后不再提示",
     immediateArchiveName: "立刻归档",
     immediateArchiveDesc:
-      "默认关闭。开启后勾选任务会立刻写入 SQLite 并从原文档移除；关闭后只追加 @done 日期并保留在原文档。",
+      "默认关闭。开启后已完成或已取消的任务会立刻写入 SQLite 并从原文档移除；关闭后已完成任务只追加 @done 日期并保留在原文档。",
     preloadVaultOnStartupName: "启动后后台扫描全库",
     preloadVaultOnStartupDesc:
       "默认关闭。开启后，插件启动后会在后台预扫描整个仓库，任务侧边栏切换到全库时无需再等待首次扫描。",
@@ -165,7 +165,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     taskRefreshSuccessNotice: (scannedFiles, updatedFiles, archivedTasks) =>
       `已刷新任务：扫描 ${scannedFiles} 个文件，更新 ${updatedFiles} 个文件，归档 ${archivedTasks} 个任务。`,
     taskRefreshFailureNotice: "Task Manager 刷新任务时失败。",
-    archiveFailureNotice: "Task Manager 归档已完成任务时失败。",
+    archiveFailureNotice: "Task Manager 归档已完成或已取消任务时失败。",
     archiveCurrentFileRibbonTitle: "归档当前页面中的全部任务",
     archiveCurrentTaskMenuLabel: "归档当前任务",
     archiveMissingFileNotice: "当前没有可归档的 Markdown 文件。",
@@ -174,8 +174,8 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archivePageSuccessNotice: (count) => `已归档当前页面中的 ${count} 个任务。`,
     archiveActionFailureNotice: "Task Manager 手动归档任务时失败。",
     archiveConfirmTitle: "确认归档",
-    archiveCurrentFileConfirmMessage: (count) => `将归档当前页面中的 ${count} 个已完成任务。归档后这些任务会从当前页面移除。是否继续？`,
-    archiveCurrentTaskConfirmMessage: "将归档当前已完成任务。归档后该任务会从当前页面移除。是否继续？",
+    archiveCurrentFileConfirmMessage: (count) => `将归档当前页面中的 ${count} 个已完成或已取消任务。归档后这些任务会从当前页面移除。是否继续？`,
+    archiveCurrentTaskConfirmMessage: "将归档当前已完成或已取消任务。归档后该任务会从当前页面移除。是否继续？",
     archiveConfirmButton: "确认归档",
     archiveCancelButton: "取消",
     archiveLocationLabel: "SQLite 归档位置",
@@ -276,7 +276,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archiveDontAskAgainLabel: "Don't ask again",
     immediateArchiveName: "Immediate archive",
     immediateArchiveDesc:
-      "Disabled by default. When enabled, completed tasks are stored in SQLite and removed from the source note immediately. When disabled, only the @done date is added.",
+      "Disabled by default. When enabled, completed or canceled tasks are stored in SQLite and removed from the source note immediately. When disabled, only completed tasks receive an @done date.",
     preloadVaultOnStartupName: "Preload whole vault on startup",
     preloadVaultOnStartupDesc:
       "Disabled by default. When enabled, the plugin scans the whole vault in the background after startup so the task sidebar can switch to whole-vault results without the first scan delay.",
@@ -287,7 +287,7 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     taskRefreshSuccessNotice: (scannedFiles, updatedFiles, archivedTasks) =>
       `Refreshed tasks: scanned ${scannedFiles} file(s), updated ${updatedFiles} file(s), archived ${archivedTasks} task(s).`,
     taskRefreshFailureNotice: "Task Manager could not refresh tasks.",
-    archiveFailureNotice: "Task Manager could not archive the completed task.",
+    archiveFailureNotice: "Task Manager could not archive the completed or canceled task.",
     archiveCurrentFileRibbonTitle: "Archive all tasks in the current note",
     archiveCurrentTaskMenuLabel: "Archive current task",
     archiveMissingFileNotice: "There is no active Markdown file to archive.",
@@ -296,8 +296,8 @@ const COPY: Record<TaskManagerLocale, SettingsCopy> = {
     archivePageSuccessNotice: (count) => `Archived ${count} tasks from the current note.`,
     archiveActionFailureNotice: "Task Manager could not archive the selected tasks.",
     archiveConfirmTitle: "Confirm archive",
-    archiveCurrentFileConfirmMessage: (count) => `Archive ${count} completed tasks from the current note? They will be removed from the note after archiving.`,
-    archiveCurrentTaskConfirmMessage: "Archive the current completed task? It will be removed from the note after archiving.",
+    archiveCurrentFileConfirmMessage: (count) => `Archive ${count} completed or canceled tasks from the current note? They will be removed from the note after archiving.`,
+    archiveCurrentTaskConfirmMessage: "Archive the current completed or canceled task? It will be removed from the note after archiving.",
     archiveConfirmButton: "Archive",
     archiveCancelButton: "Cancel",
     archiveLocationLabel: "SQLite archive location",

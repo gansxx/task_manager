@@ -197,7 +197,7 @@ export function isTaskArchivable(line: string): boolean {
     return false;
   }
 
-  return parsed.status === "done";
+  return parsed.status === "done" || parsed.status === "canceled";
 }
 
 export function getTaskArchiveBlock(
@@ -206,7 +206,7 @@ export function getTaskArchiveBlock(
 ): { text: string; lineCount: number } | null {
   const taskLine = lines[lineNumber];
   const parsed = taskLine === undefined ? null : parseTaskLine(taskLine);
-  if (!taskLine || !parsed || parsed.status !== "done") {
+  if (!taskLine || !parsed || (parsed.status !== "done" && parsed.status !== "canceled")) {
     return null;
   }
 
