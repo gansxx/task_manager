@@ -199,11 +199,41 @@ export class TaskMonitorService {
   }
 
   async setTaskCanceled(file: TFile, lineNumber: number, canceled: boolean): Promise<boolean> {
-    return this.updateTaskLineContent(file, lineNumber, (line) => setTaskCanceled(
-      line,
+    const content = await this.app.vault.cachedRead(file);
+    const lines = content.split("\n");
+    const currentLine = lines[lineNumber];
+    if (currentLine === undefined || !parseTaskLine(currentLine)) {
+      return false;
+    }
+
+    const date = getCurrentTimestamp(this.getSettings().timestampPrecision);
+    const updatedLine = setTaskCanceled(
+      currentLine,
       canceled,
-      canceled ? this.formatToken("@canceled({date})", getCurrentTimestamp(this.getSettings().timestampPrecision)) : undefined,
-    ));
+      canceled ? this.formatToken("@canceled({date})", date) : undefined,
+    );
+    if (updatedLine === currentLine) {
+      return false;
+    }
+
+    lines[lineNumber] = updatedLine;
+    if (!canceled || !this.getSettings().immediateArchiveEnabled) {
+      await this.app.vault.modify(file, lines.join("\n"));
+      this.snapshots.set(file.path, lines);
+      return true;
+    }
+
+    const archiveBlock = getTaskArchiveBlock(lines, lineNumber);
+    if (!archiveBlock) {
+      return false;
+    }
+
+    const archived = await this.archiveService.archiveCompletedTask(file, archiveBlock.text, date);
+    await this.completionStore.recordArchive(file.path, archived.archivePath, archiveBlock.text, date);
+    lines.splice(lineNumber, archiveBlock.lineCount);
+    await this.app.vault.modify(file, lines.join("\n"));
+    this.snapshots.set(file.path, lines);
+    return true;
   }
 
   registerDefaultHandlers(): void {
@@ -558,16 +588,13 @@ export class TaskMonitorService {
 
       if (parsed.canceledToken) {
         // Repair task lines created by older builds, which could leave both
-        // terminal tokens behind. Canceled is authoritative and is not archived.
+        // terminal tokens behind. Canceled is authoritative and can be archived.
         const nextLine = setTaskCanceled(line, true, parsed.canceledToken);
         if (nextLine !== line) {
           lines[lineNumber] = nextLine;
           updated = true;
         }
-        continue;
-      }
-
-      if (!parsed.doneToken) {
+      } else if (!parsed.doneToken) {
         const nextLine = appendDoneToken(
           line,
           this.formatToken(this.getSettings().doneTokenFormat, date),
